@@ -114,6 +114,8 @@ class Runner:
         self.warmup()
 
         start = time.time()
+        print("Episode_length : ", self.episode_length) # This value comes from the happo config.yaml
+        print("N rollout threads : ", self.n_rollout_threads) # The value present in happo config.yaml is updated by the process_marl.py file
         episodes = int(self.num_env_steps) // self.episode_length // self.n_rollout_threads
 
         train_episode_rewards = torch.zeros(1, self.n_rollout_threads, device=self.device)

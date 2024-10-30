@@ -40,7 +40,7 @@ def csv2numpy(csv_file):
     return {k: np.array(v) for k, v in csv_dict.items()}
 
 
-def convert_tfevents_to_csv(root_dir, alg_type, env_num, env_step, refresh=False):
+def convert_tfevents_to_csv(root_dir, alg_type, env_num, env_step, file_path, refresh=False):
     """Recursively convert test/rew from all tfevent file under root_dir to csv.
 
     This function assumes that there is at most one tfevents file in each directory
@@ -48,10 +48,13 @@ def convert_tfevents_to_csv(root_dir, alg_type, env_num, env_step, refresh=False
 
     :param bool refresh: re-create csv file under any condition.
     """
-    if alg_type == 'sarl':
+    if file_path:
+        tfevent_files = [file_path]
+        print("File path : ", file_path)
+    elif alg_type == 'sarl':
         tfevent_files = find_all_files(root_dir, re.compile(r"^.*tfevents.*$"))
     elif alg_type == 'marl':
-        tfevent_files = find_all_files(root_dir, re.compile(r"^.*tfevents.*.13$"))
+        tfevent_files = find_all_files(root_dir, re.compile(r"^.*tfevents.*.13$")) #r"^.*tfevents.*.13$"
     else:
         print("wrong alg_type!")
 
@@ -166,10 +169,15 @@ if __name__ == "__main__":
         action="store_true",
         help="Remove the data point of env_step == 0."
     )
+    parser.add_argument(
+        '--tf_file',
+        type=str,
+        help='Give tf file name'
+    )
     parser.add_argument('--root-dir', type=str)
     args = parser.parse_args()
     
     args.root_dir = '{}/{}'.format(args.root_dir,args.alg_name)
 
-    csv_files = convert_tfevents_to_csv(args.root_dir, args.alg_type, args.env_num, args.env_step, args.refresh)
+    csv_files = convert_tfevents_to_csv(args.root_dir, args.alg_type, args.env_num, args.env_step, args.tf_file, args.refresh)
     merge_csv(csv_files, args.root_dir, args.remove_zero)

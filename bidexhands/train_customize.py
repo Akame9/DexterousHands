@@ -1,7 +1,15 @@
 import bidexhands as bi
 import torch
+#import carb
 
-env_name = 'ShadowHandOver'
+# Set log level to INFO or DEBUG for more detailed logs
+#carb.settings.set("/log/level", "info")
+#carb.settings.set("/log/level/default", "info")
+
+# If you want even more detailed logs, set it to TRACE
+#carb.settings.set("/log/level", "trace")
+
+env_name = 'ShadowHandRubiksCube'  #'ShadowHandOver' #'ShadowHandDoorOpenInward' 
 algo = "ppo"
 env = bi.make(env_name, algo)
 
