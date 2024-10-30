@@ -773,7 +773,8 @@ class ShadowHandRubiksCube(BaseTask):
         self.object_rot = self.root_state_tensor[self.object_indices, 3:7]
         self.object_linvel = self.root_state_tensor[self.object_indices, 7:10]
         self.object_angvel = self.root_state_tensor[self.object_indices, 10:13]
-
+        '''
+        AATHIRA
         self.scissors_right_handle_pos = self.rigid_body_states[:, 26 * 2 + 2, 0:3]
         self.scissors_right_handle_rot = self.rigid_body_states[:, 26 * 2 + 2, 3:7]
         self.scissors_right_handle_pos = self.scissors_right_handle_pos + quat_apply(self.scissors_right_handle_rot, to_torch([0, 1, 0], device=self.device).repeat(self.num_envs, 1) * -0.)
@@ -785,6 +786,61 @@ class ShadowHandRubiksCube(BaseTask):
         self.scissors_left_handle_pos = self.scissors_left_handle_pos + quat_apply(self.scissors_left_handle_rot, to_torch([0, 1, 0], device=self.device).repeat(self.num_envs, 1) * 0.0)
         self.scissors_left_handle_pos = self.scissors_left_handle_pos + quat_apply(self.scissors_left_handle_rot, to_torch([1, 0, 0], device=self.device).repeat(self.num_envs, 1) * 0.15)
         self.scissors_left_handle_pos = self.scissors_left_handle_pos + quat_apply(self.scissors_left_handle_rot, to_torch([0, 0, 1], device=self.device).repeat(self.num_envs, 1) * 0.1)
+        '''
+        self.cube_1_pos = self.rigid_body_states[:, 26 * 2 + 1, 0:3]
+        self.cube_1_rot = self.rigid_body_states[:, 26 * 2 + 1, 3:7] 
+        self.cube_2_pos = self.rigid_body_states[:, 26 * 2 + 2, 0:3]
+        self.cube_2_rot = self.rigid_body_states[:, 26 * 2 + 2, 3:7]
+        self.cube_3_pos = self.rigid_body_states[:, 26 * 2 + 3, 0:3]
+        self.cube_3_rot = self.rigid_body_states[:, 26 * 2 + 3, 3:7]
+        self.cube_4_pos = self.rigid_body_states[:, 26 * 2 + 4, 0:3]
+        self.cube_4_rot = self.rigid_body_states[:, 26 * 2 + 4, 3:7]
+        self.cube_5_pos = self.rigid_body_states[:, 26 * 2 + 5, 0:3]
+        self.cube_5_rot = self.rigid_body_states[:, 26 * 2 + 5, 3:7]
+        self.cube_6_pos = self.rigid_body_states[:, 26 * 2 + 6, 0:3]
+        self.cube_6_rot = self.rigid_body_states[:, 26 * 2 + 6, 3:7]
+        self.cube_7_pos = self.rigid_body_states[:, 26 * 2 + 7, 0:3]
+        self.cube_7_rot = self.rigid_body_states[:, 26 * 2 + 7, 3:7]
+        self.cube_8_pos = self.rigid_body_states[:, 26 * 2 + 8, 0:3]
+        self.cube_8_rot = self.rigid_body_states[:, 26 * 2 + 8, 3:7]
+        self.cube_9_pos = self.rigid_body_states[:, 26 * 2 + 9, 0:3]
+        self.cube_9_rot = self.rigid_body_states[:, 26 * 2 + 9, 3:7]
+        self.cube_10_pos = self.rigid_body_states[:, 26 * 2 + 10, 0:3]
+        self.cube_10_rot = self.rigid_body_states[:, 26 * 2 + 10, 3:7]
+        self.cube_11_pos = self.rigid_body_states[:, 26 * 2 + 11, 0:3]
+        self.cube_11_rot = self.rigid_body_states[:, 26 * 2 + 11, 3:7]
+        self.cube_12_pos = self.rigid_body_states[:, 26 * 2 + 12, 0:3]
+        self.cube_12_rot = self.rigid_body_states[:, 26 * 2 + 12, 3:7]
+        self.cube_13_pos = self.rigid_body_states[:, 26 * 2 + 13, 0:3]
+        self.cube_13_rot = self.rigid_body_states[:, 26 * 2 + 13, 3:7]
+        self.cube_14_pos = self.rigid_body_states[:, 26 * 2 + 14, 0:3]
+        self.cube_14_rot = self.rigid_body_states[:, 26 * 2 + 14, 3:7]
+        self.cube_15_pos = self.rigid_body_states[:, 26 * 2 + 15, 0:3]
+        self.cube_15_rot = self.rigid_body_states[:, 26 * 2 + 15, 3:7]
+        self.cube_16_pos = self.rigid_body_states[:, 26 * 2 + 16, 0:3]
+        self.cube_16_rot = self.rigid_body_states[:, 26 * 2 + 16, 3:7]
+        self.cube_17_pos = self.rigid_body_states[:, 26 * 2 + 17, 0:3]
+        self.cube_17_rot = self.rigid_body_states[:, 26 * 2 + 17, 3:7]
+        self.cube_18_pos = self.rigid_body_states[:, 26 * 2 + 18, 0:3]
+        self.cube_18_rot = self.rigid_body_states[:, 26 * 2 + 18, 3:7]
+        self.cube_19_pos = self.rigid_body_states[:, 26 * 2 + 19, 0:3]
+        self.cube_19_rot = self.rigid_body_states[:, 26 * 2 + 19, 3:7]
+        self.cube_20_pos = self.rigid_body_states[:, 26 * 2 + 20, 0:3]
+        self.cube_20_rot = self.rigid_body_states[:, 26 * 2 + 20, 3:7]
+        self.cube_21_pos = self.rigid_body_states[:, 26 * 2 + 21, 0:3]
+        self.cube_21_rot = self.rigid_body_states[:, 26 * 2 + 21, 3:7]
+        self.cube_22_pos = self.rigid_body_states[:, 26 * 2 + 22, 0:3]
+        self.cube_22_rot = self.rigid_body_states[:, 26 * 2 + 22, 3:7]
+        self.cube_23_pos = self.rigid_body_states[:, 26 * 2 + 23, 0:3]
+        self.cube_23_rot = self.rigid_body_states[:, 26 * 2 + 23, 3:7]
+        self.cube_24_pos = self.rigid_body_states[:, 26 * 2 + 24, 0:3]
+        self.cube_24_rot = self.rigid_body_states[:, 26 * 2 + 24, 3:7]
+        self.cube_25_pos = self.rigid_body_states[:, 26 * 2 + 25, 0:3]
+        self.cube_25_rot = self.rigid_body_states[:, 26 * 2 + 25, 3:7]
+        self.cube_26_pos = self.rigid_body_states[:, 26 * 2 + 26, 0:3]
+        self.cube_26_rot = self.rigid_body_states[:, 26 * 2 + 26, 3:7]
+        self.cube_27_pos = self.rigid_body_states[:, 26 * 2 + 27, 0:3]
+        self.cube_27_rot = self.rigid_body_states[:, 26 * 2 + 27, 3:7]
 
         self.left_hand_pos = self.rigid_body_states[:, 3 + 26, 0:3]
         self.left_hand_rot = self.rigid_body_states[:, 3 + 26, 3:7]
@@ -926,12 +982,23 @@ class ShadowHandRubiksCube(BaseTask):
         self.obs_buf[:, obj_obs_start:obj_obs_start + 7] = self.object_pose
         self.obs_buf[:, obj_obs_start + 7:obj_obs_start + 10] = self.object_linvel
         self.obs_buf[:, obj_obs_start + 10:obj_obs_start + 13] = self.vel_obs_scale * self.object_angvel
+        cubes_positions = [self.cube_1_pos, self.cube_2_pos, self.cube_3_pos, self.cube_4_pos, self.cube_5_pos, self.cube_6_pos, self.cube_7_pos, self.cube_8_pos,
+                           self.cube_9_pos, self.cube_10_pos, self.cube_11_pos, self.cube_12_pos, self.cube_13_pos, self.cube_14_pos, self.cube_15_pos, self.cube_16_pos, 
+                           self.cube_17_pos, self.cube_18_pos, self.cube_19_pos, self.cube_20_pos, self.cube_21_pos, self.cube_22_pos, self.cube_23_pos, self.cube_24_pos, 
+                           self.cube_25_pos, self.cube_26_pos, self.cube_27_pos]  # List of all cube position tensors
+        self.obs_buf[:, obj_obs_start + 13:obj_obs_start + 13 + 3 * 27] = torch.cat(cubes_positions, dim=1)
+
+        """
+        AATHIRA
         self.obs_buf[:, obj_obs_start + 13:obj_obs_start + 16] = self.scissors_right_handle_pos
         self.obs_buf[:, obj_obs_start + 16:obj_obs_start + 19] = self.scissors_left_handle_pos
+        """
+        
+        
         # goal_obs_start = obj_obs_start + 13  # 157 = 144 + 13
         # self.obs_buf[:, goal_obs_start:goal_obs_start + 7] = self.goal_pose
         # self.obs_buf[:, goal_obs_start + 7:goal_obs_start + 11] = quat_mul(self.object_rot, quat_conjugate(self.goal_rot))
-
+    '''
     def compute_point_cloud_observation(self, collect_demonstration=False):
         """
         Compute the observations of all environment. The observation is composed of three parts: 
@@ -1055,6 +1122,8 @@ class ShadowHandRubiksCube(BaseTask):
 
         point_clouds_start = obj_obs_start + 19
         self.obs_buf[:, point_clouds_start:].copy_(point_clouds.view(self.num_envs, self.pointCloudDownsampleNum * 3))
+
+    '''
 
     def reset_target_pose(self, env_ids, apply_reset=False):
         """
@@ -1345,7 +1414,7 @@ class ShadowHandRubiksCube(BaseTask):
 #####################################################################
 ###=========================jit functions=========================###
 #####################################################################
-
+"""
 @torch.jit.script
 def depth_image_to_point_cloud_GPU(camera_tensor, camera_view_matrix_inv, camera_proj_matrix, u, v, width:float, height:float, depth_bar:float, device:torch.device):
     # time1 = time.time()
@@ -1380,6 +1449,8 @@ def depth_image_to_point_cloud_GPU(camera_tensor, camera_view_matrix_inv, camera
     points = position[:, 0:3]
 
     return points
+"""
+
 
 @torch.jit.script
 def compute_hand_reward(
