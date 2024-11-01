@@ -137,7 +137,7 @@ class ShadowHandRubiksCube(BaseTask):
         self.num_obs_dict = {
             "point_cloud": 417 + self.num_point_cloud_feature_dim * 3,
             "point_cloud_for_distill": 417 + self.num_point_cloud_feature_dim * 3,
-            "full_state": 417
+            "full_state": 502 #417
         }
         self.num_hand_obs = 72 + 95 + 26 + 6
         self.up_axis = 'z'
@@ -278,6 +278,50 @@ class ShadowHandRubiksCube(BaseTask):
         plane_params = gymapi.PlaneParams()
         plane_params.normal = gymapi.Vec3(0.0, 0.0, 1.0)
         self.gym.add_ground(self.sim, plane_params)
+
+    def add_cube_colors(self, env_ptr, object_handle):
+        color_dict = {
+            0: gymapi.Vec3(1.0, 0.0, 0.0),   # Red
+            1: gymapi.Vec3(0.0, 1.0, 0.0),   # Green
+            2: gymapi.Vec3(0.0, 0.0, 1.0),   # Blue
+            3: gymapi.Vec3(1.0, 1.0, 0.0),   # Yellow
+            4: gymapi.Vec3(1.0, 0.0, 1.0),   # Magenta
+            5: gymapi.Vec3(0.0, 1.0, 1.0),   # Cyan
+            6: gymapi.Vec3(0.5, 0.0, 0.0),   # Dark Red
+            7: gymapi.Vec3(0.0, 0.5, 0.0),   # Dark Green
+            8: gymapi.Vec3(0.0, 0.0, 0.5),   # Dark Blue
+            9: gymapi.Vec3(0.5, 0.5, 0.0),   # Olive
+            10: gymapi.Vec3(0.5, 0.0, 0.5),  # Purple
+            11: gymapi.Vec3(0.0, 0.5, 0.5),  # Teal
+        }
+        ''' 
+            
+            
+            8: gymapi.Vec3(0.0, 0.0, 0.5),   # Dark Blue
+            9: gymapi.Vec3(0.5, 0.5, 0.0),   # Olive
+            10: gymapi.Vec3(0.5, 0.0, 0.5),  # Purple
+            11: gymapi.Vec3(0.0, 0.5, 0.5),  # Teal
+            12: gymapi.Vec3(0.75, 0.25, 0.0),# Orange
+            13: gymapi.Vec3(0.25, 0.75, 0.0),# Lime Green
+            14: gymapi.Vec3(0.75, 0.0, 0.25),# Pink
+            15: gymapi.Vec3(0.25, 0.0, 0.75),# Indigo
+            16: gymapi.Vec3(0.0, 0.25, 0.75),# Sky Blue
+            17: gymapi.Vec3(0.75, 0.75, 0.25),# Light Yellow
+            18: gymapi.Vec3(0.25, 0.75, 0.75),# Light Cyan
+            19: gymapi.Vec3(0.75, 0.25, 0.75),# Light Magenta
+            20: gymapi.Vec3(1.0, 0.5, 0.0),  # Bright Orange
+            21: gymapi.Vec3(0.5, 1.0, 0.0),  # Bright Lime Green
+            22: gymapi.Vec3(0.0, 1.0, 0.5),  # Bright Teal
+            23: gymapi.Vec3(1.0, 0.0, 0.5),  # Bright Pink
+            24: gymapi.Vec3(0.5, 0.0, 1.0),  # Bright Indigo
+            25: gymapi.Vec3(0.0, 0.5, 1.0),  # Bright Sky Blue
+            26: gymapi.Vec3(0.5, 0.5, 0.5)   # Gray
+            '''
+
+        # Set the color for each rigid body using the color dictionary
+        for o in range(12):
+            color = color_dict[o]
+            self.gym.set_rigid_body_color(env_ptr, object_handle, o, gymapi.MESH_VISUAL, color)
 
     def _create_envs(self, num_envs, spacing, num_per_row):
         """
@@ -612,7 +656,7 @@ class ShadowHandRubiksCube(BaseTask):
             cube_props = self.gym.get_actor_rigid_body_properties(env_ptr, object_handle)
             print("AATHIRA : Cube pros shape = ", len(cube_props))
             # self.gym.set_actor_scale(env_ptr, object_handle, 0.3)
-
+            self.add_cube_colors(env_ptr, object_handle)
             # add goal object
             goal_handle = self.gym.create_actor(env_ptr, goal_asset, goal_start_pose, "goal_object", i+self.num_envs , 0, 0) 
             #self.gym.set_actor_dof_properties(env_ptr, goal_handle, object_dof_props)
@@ -668,6 +712,7 @@ class ShadowHandRubiksCube(BaseTask):
                 self.gym.set_rigid_body_color(
                     env_ptr, goal_handle, 0, gymapi.MESH_VISUAL, gymapi.Vec3(0.6, 0.72, 0.98))
 
+            """
             if self.obs_type in ["point_cloud"]:
                 camera_handle = self.gym.create_camera_sensor(env_ptr, self.camera_props)
                 self.gym.set_camera_location(camera_handle, env_ptr, gymapi.Vec3(0.25, -0., 1.0), gymapi.Vec3(-0.24, -0., 0))
@@ -684,6 +729,8 @@ class ShadowHandRubiksCube(BaseTask):
                 self.camera_view_matrixs.append(cam_vinv)
                 self.camera_proj_matrixs.append(cam_proj)
                 self.cameras.append(camera_handle)
+            """
+            
 
             if self.aggregate_mode > 0:
                 self.gym.end_aggregate(env_ptr)
@@ -773,8 +820,8 @@ class ShadowHandRubiksCube(BaseTask):
         self.object_rot = self.root_state_tensor[self.object_indices, 3:7]
         self.object_linvel = self.root_state_tensor[self.object_indices, 7:10]
         self.object_angvel = self.root_state_tensor[self.object_indices, 10:13]
-        '''
-        AATHIRA
+        
+        #AATHIRA
         self.scissors_right_handle_pos = self.rigid_body_states[:, 26 * 2 + 2, 0:3]
         self.scissors_right_handle_rot = self.rigid_body_states[:, 26 * 2 + 2, 3:7]
         self.scissors_right_handle_pos = self.scissors_right_handle_pos + quat_apply(self.scissors_right_handle_rot, to_torch([0, 1, 0], device=self.device).repeat(self.num_envs, 1) * -0.)
@@ -786,9 +833,12 @@ class ShadowHandRubiksCube(BaseTask):
         self.scissors_left_handle_pos = self.scissors_left_handle_pos + quat_apply(self.scissors_left_handle_rot, to_torch([0, 1, 0], device=self.device).repeat(self.num_envs, 1) * 0.0)
         self.scissors_left_handle_pos = self.scissors_left_handle_pos + quat_apply(self.scissors_left_handle_rot, to_torch([1, 0, 0], device=self.device).repeat(self.num_envs, 1) * 0.15)
         self.scissors_left_handle_pos = self.scissors_left_handle_pos + quat_apply(self.scissors_left_handle_rot, to_torch([0, 0, 1], device=self.device).repeat(self.num_envs, 1) * 0.1)
-        '''
+        
         self.cube_1_pos = self.rigid_body_states[:, 26 * 2 + 1, 0:3]
         self.cube_1_rot = self.rigid_body_states[:, 26 * 2 + 1, 3:7] 
+        #self.cube_1_pos = self.cube_1_pos + quat_apply(self.cube_1_rot, to_torch([0, 1, 0], device=self.device).repeat(self.num_envs, 1) * -0.)
+        #self.cube_1_pos = self.cube_1_pos + quat_apply(self.cube_1_rot, to_torch([1, 0, 0], device=self.device).repeat(self.num_envs, 1) * 0.2)
+        #self.cube_1_pos = self.cube_1_pos + quat_apply(self.cube_1_rot, to_torch([0, 0, 1], device=self.device).repeat(self.num_envs, 1) * -0.1)
         self.cube_2_pos = self.rigid_body_states[:, 26 * 2 + 2, 0:3]
         self.cube_2_rot = self.rigid_body_states[:, 26 * 2 + 2, 3:7]
         self.cube_3_pos = self.rigid_body_states[:, 26 * 2 + 3, 0:3]
@@ -932,8 +982,9 @@ class ShadowHandRubiksCube(BaseTask):
         408 - 410	object angle velocity
         411 - 417	goal pose
         418 - 421	goal rot - object rot
-        422 - 424	scissors right handle position
-        425 - 427	scissors left handle position
+        422 - 502   cube positions
+        #422 - 424	scissors right handle position
+        #425 - 427	scissors left handle position
         """
         num_ft_states = 13 * int(self.num_fingertips / 2)  # 65
         num_ft_force_torques = 6 * int(self.num_fingertips / 2)  # 30
@@ -982,11 +1033,21 @@ class ShadowHandRubiksCube(BaseTask):
         self.obs_buf[:, obj_obs_start:obj_obs_start + 7] = self.object_pose
         self.obs_buf[:, obj_obs_start + 7:obj_obs_start + 10] = self.object_linvel
         self.obs_buf[:, obj_obs_start + 10:obj_obs_start + 13] = self.vel_obs_scale * self.object_angvel
+        
         cubes_positions = [self.cube_1_pos, self.cube_2_pos, self.cube_3_pos, self.cube_4_pos, self.cube_5_pos, self.cube_6_pos, self.cube_7_pos, self.cube_8_pos,
                            self.cube_9_pos, self.cube_10_pos, self.cube_11_pos, self.cube_12_pos, self.cube_13_pos, self.cube_14_pos, self.cube_15_pos, self.cube_16_pos, 
                            self.cube_17_pos, self.cube_18_pos, self.cube_19_pos, self.cube_20_pos, self.cube_21_pos, self.cube_22_pos, self.cube_23_pos, self.cube_24_pos, 
                            self.cube_25_pos, self.cube_26_pos, self.cube_27_pos]  # List of all cube position tensors
-        self.obs_buf[:, obj_obs_start + 13:obj_obs_start + 13 + 3 * 27] = torch.cat(cubes_positions, dim=1)
+        #print("AATHIRA : self.cube_1_pos.shape : ", self.cube_1_pos.shape)
+        #print("AATHIRA : Cube cat : ", torch.cat(cubes_positions, dim=1).shape)
+        #self.obs_buf[:, obj_obs_start + 13:obj_obs_start + 16] = self.cube_1_pos
+        #self.obs_buf[:, obj_obs_start + 16:obj_obs_start + 19] = self.cube_2_pos
+        #self.obs_buf[:, obj_obs_start + 19:obj_obs_start + 22] = self.cube_3_pos
+        #print("AATHIRA : First cube done...")
+        #print("AATHIRA : obs_buf shape = ", self.obs_buf[:, obj_obs_start + 13:obj_obs_start + 16].shape)
+        #print("AATHIRA : obs_buf shape = ", self.obs_buf[:, obj_obs_start + 13:obj_obs_start + 21].shape)
+        #print("AATHIRA : obj_obs_start = ", obj_obs_start)
+        self.obs_buf[:, obj_obs_start + 13:obj_obs_start + 94] = torch.cat(cubes_positions, dim=1)
 
         """
         AATHIRA
@@ -1340,6 +1401,7 @@ class ShadowHandRubiksCube(BaseTask):
         lines for debug when needed
         
         """
+        print("AATHIRA : Inside post_physics_step...")
         self.progress_buf += 1
         self.randomize_buf += 1
 
@@ -1348,24 +1410,29 @@ class ShadowHandRubiksCube(BaseTask):
 
         if self.viewer and self.debug_viz:
             # draw axes on target object
+            print("AATHIRA : inside viewer condition...")
             self.gym.clear_lines(self.viewer)
             self.gym.refresh_rigid_body_state_tensor(self.sim)
 
             for i in range(self.num_envs):
-                self.add_debug_lines(self.envs[i], self.scissors_right_handle_pos[i], self.scissors_right_handle_rot[i])
-                self.add_debug_lines(self.envs[i], self.scissors_left_handle_pos[i], self.scissors_left_handle_rot[i])
+                #Aathira changes
+                print("AATHIRA : inside for loop for add_debug_lines")
+                self.add_debug_lines(self.envs[i], self.cube_1_pos[i], self.cube_1_rot[i])
+                self.add_debug_lines(self.envs[i], self.cube_2_pos[i], self.cube_2_rot[i])
+                self.add_debug_lines(self.envs[i], self.cube_3_pos[i], self.cube_3_rot[i])
+                self.add_debug_lines(self.envs[i], self.cube_4_pos[i], self.cube_4_rot[i])
 
-                # self.add_debug_lines(self.envs[i], self.right_hand_ff_pos[i], self.right_hand_ff_rot[i])
-                # self.add_debug_lines(self.envs[i], self.right_hand_mf_pos[i], self.right_hand_mf_rot[i])
-                # self.add_debug_lines(self.envs[i], self.right_hand_rf_pos[i], self.right_hand_rf_rot[i])
-                # self.add_debug_lines(self.envs[i], self.right_hand_lf_pos[i], self.right_hand_lf_rot[i])
-                # self.add_debug_lines(self.envs[i], self.right_hand_th_pos[i], self.right_hand_th_rot[i])
+                #self.add_debug_lines(self.envs[i], self.right_hand_ff_pos[i], self.right_hand_ff_rot[i])
+                #self.add_debug_lines(self.envs[i], self.right_hand_mf_pos[i], self.right_hand_mf_rot[i])
+                #self.add_debug_lines(self.envs[i], self.right_hand_rf_pos[i], self.right_hand_rf_rot[i])
+                #self.add_debug_lines(self.envs[i], self.right_hand_lf_pos[i], self.right_hand_lf_rot[i])
+                #self.add_debug_lines(self.envs[i], self.right_hand_th_pos[i], self.right_hand_th_rot[i])
 
-                # self.add_debug_lines(self.envs[i], self.left_hand_ff_pos[i], self.right_hand_ff_rot[i])
-                # self.add_debug_lines(self.envs[i], self.left_hand_mf_pos[i], self.right_hand_mf_rot[i])
-                # self.add_debug_lines(self.envs[i], self.left_hand_rf_pos[i], self.right_hand_rf_rot[i])
-                # self.add_debug_lines(self.envs[i], self.left_hand_lf_pos[i], self.right_hand_lf_rot[i])
-                # self.add_debug_lines(self.envs[i], self.left_hand_th_pos[i], self.right_hand_th_rot[i])
+                #self.add_debug_lines(self.envs[i], self.left_hand_ff_pos[i], self.right_hand_ff_rot[i])
+                #self.add_debug_lines(self.envs[i], self.left_hand_mf_pos[i], self.right_hand_mf_rot[i])
+                #self.add_debug_lines(self.envs[i], self.left_hand_rf_pos[i], self.right_hand_rf_rot[i])
+                #self.add_debug_lines(self.envs[i], self.left_hand_lf_pos[i], self.right_hand_lf_rot[i])
+                #self.add_debug_lines(self.envs[i], self.left_hand_th_pos[i], self.right_hand_th_rot[i])
 
 
     def add_debug_lines(self, env, pos, rot):
@@ -1374,6 +1441,7 @@ class ShadowHandRubiksCube(BaseTask):
         posz = (pos + quat_apply(rot, to_torch([0, 0, 1], device=self.device) * 0.2)).cpu().numpy()
 
         p0 = pos.cpu().numpy()
+
         self.gym.add_lines(self.viewer, env, 1, [p0[0], p0[1], p0[2], posx[0], posx[1], posx[2]], [0.85, 0.1, 0.1])
         self.gym.add_lines(self.viewer, env, 1, [p0[0], p0[1], p0[2], posy[0], posy[1], posy[2]], [0.1, 0.85, 0.1])
         self.gym.add_lines(self.viewer, env, 1, [p0[0], p0[1], p0[2], posz[0], posz[1], posz[2]], [0.1, 0.1, 0.85])

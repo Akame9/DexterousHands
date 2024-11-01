@@ -1,10 +1,10 @@
 # if given, will override the device setting in gym. 
 env: 
   env_name: "shadow_hand_rubiks_cube"
-  numEnvs: 1
+  numEnvs: 20
   envSpacing: 1.5
   episodeLength: 150
-  enableDebugVis: False
+  enableDebugVis: True # Aathira change False
   cameraDebug: True
   pointCloudDebug: True
   aggregateMode: 1
