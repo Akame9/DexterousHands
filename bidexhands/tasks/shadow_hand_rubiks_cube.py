@@ -13,7 +13,7 @@ import numpy as np
 import os
 import random
 import torch
-
+import math
 from bidexhands.utils.torch_jit_utils import *
 from bidexhands.tasks.hand_base.base_task import BaseTask
 from isaacgym import gymtorch
@@ -281,22 +281,38 @@ class ShadowHandRubiksCube(BaseTask):
 
     def add_cube_colors(self, env_ptr, object_handle):
         color_dict = {
-            0: gymapi.Vec3(1.0, 0.0, 0.0),   # Red
+            0: gymapi.Vec3(1.0, 0.0, 0.0),   # Red    ---
             1: gymapi.Vec3(0.0, 1.0, 0.0),   # Green
             2: gymapi.Vec3(0.0, 0.0, 1.0),   # Blue
             3: gymapi.Vec3(1.0, 1.0, 0.0),   # Yellow
             4: gymapi.Vec3(1.0, 0.0, 1.0),   # Magenta
             5: gymapi.Vec3(0.0, 1.0, 1.0),   # Cyan
-            6: gymapi.Vec3(0.5, 0.0, 0.0),   # Dark Red
+            6: gymapi.Vec3(0.5, 0.0, 0.0),   # Dark Red      --
             7: gymapi.Vec3(0.0, 0.5, 0.0),   # Dark Green
             8: gymapi.Vec3(0.0, 0.0, 0.5),   # Dark Blue
             9: gymapi.Vec3(0.5, 0.5, 0.0),   # Olive
             10: gymapi.Vec3(0.5, 0.0, 0.5),  # Purple
             11: gymapi.Vec3(0.0, 0.5, 0.5),  # Teal
+            12: gymapi.Vec3(0.75, 0.25, 0.0),# Orange
+            13: gymapi.Vec3(0.25, 0.75, 0.0),# Lime Green
+            14: gymapi.Vec3(0.75, 0.0, 0.25),# Pink
+            15: gymapi.Vec3(0.25, 0.0, 0.75),# Indigo
+            16: gymapi.Vec3(0.0, 0.25, 0.75),# Sky Blue
+            17: gymapi.Vec3(0.75, 0.75, 0.25),# Light Yellow  
+            18: gymapi.Vec3(0.25, 0.75, 0.75),# Light Cyan
+            19: gymapi.Vec3(0.75, 0.25, 0.75),# Light Magenta
+            20: gymapi.Vec3(1.0, 0.5, 0.0),  # Bright Orange
+            21: gymapi.Vec3(0.5, 1.0, 0.0),  # Bright Lime Green
+            22: gymapi.Vec3(0.0, 1.0, 0.5),  # Bright Teal
+            23: gymapi.Vec3(1.0, 0.0, 0.5),  # Bright Pink
+            24: gymapi.Vec3(0.5, 0.0, 1.0),  # Bright Indigo
+            25: gymapi.Vec3(0.0, 0.5, 1.0),  # Bright Sky Blue
+            26: gymapi.Vec3(0.5, 0.5, 0.5)   # Gray
+            
         }
         ''' 
-            
-            
+            6: gymapi.Vec3(0.5, 0.0, 0.0),   # Dark Red
+            7: gymapi.Vec3(0.0, 0.5, 0.0),   # Dark Green
             8: gymapi.Vec3(0.0, 0.0, 0.5),   # Dark Blue
             9: gymapi.Vec3(0.5, 0.5, 0.0),   # Olive
             10: gymapi.Vec3(0.5, 0.0, 0.5),  # Purple
@@ -319,9 +335,37 @@ class ShadowHandRubiksCube(BaseTask):
             '''
 
         # Set the color for each rigid body using the color dictionary
-        for o in range(12):
+        for o in range(27):
             color = color_dict[o]
             self.gym.set_rigid_body_color(env_ptr, object_handle, o, gymapi.MESH_VISUAL, color)
+
+    def rotate_rubiks_face(self, env_ptr, actor_handle, face_dofs_index, angle):
+        """
+        Rotates a specific face of the Rubik's cube by setting the target position
+        for all DOFs in that face.
+
+        Args:
+            gym (gymapi.Gym): The Isaac Gym API instance.
+            env_ptr (gymapi.Env): The environment pointer.
+            actor_handle (gymapi.Actor): The Rubik's cube actor handle.
+            face_dofs (list of str): List of DOF names corresponding to the joints in the face to rotate.
+            angle (float): The rotation angle in radians. Default is 90 degrees (π/2).
+        """
+
+        # Loop through each DOF name in the specified face
+        for dof_index in face_dofs_index:
+            # Get the index of the DOF for this actuator
+            #dof_index = self.gym.get_actor_dof_index(env_ptr, actor_handle, dof_name, gymapi.IndexDomain.DOF)
+            
+            # Retrieve the current state of all DOFs
+            dof_states = self.gym.get_actor_dof_states(env_ptr, actor_handle, gymapi.STATE_ALL)
+            
+            # Update the position of the DOF for rotation
+            dof_states["pos"][dof_index] = angle  # Set target position to the desired angle
+            dof_states["vel"][dof_index] = 0      # Set velocity to zero for an instantaneous effect
+
+        # Apply the updated DOF states back to the actor
+        self.gym.set_actor_dof_states(env_ptr, actor_handle, dof_states, gymapi.STATE_ALL)
 
     def _create_envs(self, num_envs, spacing, num_per_row):
         """
@@ -516,13 +560,15 @@ class ShadowHandRubiksCube(BaseTask):
         if self.object_type == "pen":
             object_start_pose.p.z = shadow_hand_start_pose.p.z + 0.02
 
-        self.goal_displacement = gymapi.Vec3(-0., 0.0, 10)
+        # Aathira changed
+        self.goal_displacement = gymapi.Vec3(-0., 0.0, 0.3)
         self.goal_displacement_tensor = to_torch(
             [self.goal_displacement.x, self.goal_displacement.y, self.goal_displacement.z], device=self.device)
         goal_start_pose = gymapi.Transform()
         goal_start_pose.p = object_start_pose.p + self.goal_displacement
 
         goal_start_pose.p.z -= 0.0
+        goal_start_pose.r = gymapi.Quat().from_euler_zyx(0, 0, 1.57)  
 
         table_pose = gymapi.Transform()
         table_pose.p = gymapi.Vec3(0.0, 0.0, 0.5 * table_dims.z)
@@ -612,10 +658,10 @@ class ShadowHandRubiksCube(BaseTask):
 
             # randomize colors and textures for rigid body
             num_bodies = self.gym.get_actor_rigid_body_count(env_ptr, shadow_hand_actor)
-            print("AATHIRA : Hand rigid bodies count", num_bodies)
-            print("AATHIRA : Another Hand rigid bodies count", self.gym.get_actor_rigid_body_count(env_ptr, shadow_hand_another_actor))
+            #print("AATHIRA : Hand rigid bodies count", num_bodies)
+            #print("AATHIRA : Another Hand rigid bodies count", self.gym.get_actor_rigid_body_count(env_ptr, shadow_hand_another_actor))
             hand_props = self.gym.get_actor_rigid_body_properties(env_ptr, shadow_hand_actor)
-            print("AATHIRA : Hand pros shape = ", len(hand_props))
+            #print("AATHIRA : Hand pros shape = ", len(hand_props))
             hand_rigid_body_index = [[0,1,2,3], [4,5,6,7], [8,9,10,11], [12,13,14,15], [16,17,18,19,20], [21,22,23,24,25]]
             
             for n in self.agent_index[0]:
@@ -649,22 +695,69 @@ class ShadowHandRubiksCube(BaseTask):
                                            0, 0, 0, 0, 0, 0])
             self.gym.set_actor_dof_properties(env_ptr, object_handle, object_dof_props)
             object_idx = self.gym.get_actor_index(env_ptr, object_handle, gymapi.DOMAIN_SIM)
-            print("AATHIRA : OBJECT_IDX : ",object_idx)
+            #print("AATHIRA : OBJECT_IDX : ",object_idx)
             self.object_indices.append(object_idx)
-            cube_rigid_bodies = self.gym.get_actor_rigid_body_count(env_ptr, object_handle)
-            print("AATHIRA : cube rigid bodies", cube_rigid_bodies)
-            cube_props = self.gym.get_actor_rigid_body_properties(env_ptr, object_handle)
-            print("AATHIRA : Cube pros shape = ", len(cube_props))
+            #cube_rigid_bodies = self.gym.get_actor_rigid_body_count(env_ptr, object_handle)
+            #print("AATHIRA : cube rigid bodies", cube_rigid_bodies)
+            #cube_props = self.gym.get_actor_rigid_body_properties(env_ptr, object_handle)
+            #print("AATHIRA : Cube pros shape = ", len(cube_props))
             # self.gym.set_actor_scale(env_ptr, object_handle, 0.3)
             self.add_cube_colors(env_ptr, object_handle)
+            
+
             # add goal object
             goal_handle = self.gym.create_actor(env_ptr, goal_asset, goal_start_pose, "goal_object", i+self.num_envs , 0, 0) 
             #self.gym.set_actor_dof_properties(env_ptr, goal_handle, object_dof_props)
             goal_object_idx = self.gym.get_actor_index(env_ptr, goal_handle, gymapi.DOMAIN_SIM)
             self.goal_object_indices.append(goal_object_idx)
-            print("AATHIRA : Goal Index ", goal_object_idx)
-            goal_rigid_bodies = self.gym.get_actor_rigid_body_count(env_ptr, goal_handle)
-            print("AATHIRA : Goal rigid bodies count", goal_rigid_bodies) 
+            self.add_cube_colors(env_ptr, goal_handle)
+
+            # Configure DOF properties
+            #props = self.gym.get_actor_dof_properties(env_ptr, goal_handle)
+            #props["driveMode"][3] = gymapi.DOF_MODE_POS 
+            #props["stiffness"] = [5000.0] * 66
+            #props["damping"] = [100.0] * 66
+            #self.gym.set_actor_dof_properties(env_ptr, goal_handle, props)
+
+            goal_num_dofs = self.gym.get_actor_dof_count(env_ptr, goal_handle)
+            #print("AATHIRA : goal_num_dofs = ",goal_num_dofs)
+            #dof_handle = self.gym.find_actor_dof_handle(env_ptr, goal_handle, 'nY')
+            #self.gym.set_dof_target_position(env_ptr, dof_handle, 1.57)
+
+            top_face_dofs = ["pY", "nY", "pY_pZ", "nY_pZ", "pY_nZ"]
+            top_face_dof_index = []
+            for dof_index in range(goal_num_dofs):
+                dof_name = self.gym.get_asset_dof_name(goal_asset, dof_index)
+                if dof_name in top_face_dofs:
+                    print(f"DOF {dof_index}: {dof_name}")
+                    top_face_dof_index.append(dof_index)
+
+            # Step 1: Retrieve the current DOF state for the actor
+            #dof_states = self.gym.get_actor_dof_states(env_ptr, goal_handle, gymapi.STATE_ALL)
+
+            # Step 2: Set the desired DOF position (e.g., 1.57 radians for 90 degrees)
+            # Assuming the actuator we want to rotate is at index 0 for this example
+            #dof_index = 3  # Index of the DOF for the rotation you want
+            #dof_states['pos'][dof_index] = 1.57  # Set directly to 90 degrees in radians
+            #print("AATHIRA : dof_states : ", dof_states)
+            # Step 3: Apply the modified DOF states back to the actor
+            #self.gym.set_actor_dof_states(env_ptr, goal_handle, dof_states, gymapi.STATE_POS)
+            
+
+# Call the function to rotate the top face by 90 degrees
+            self.rotate_rubiks_face(env_ptr, goal_handle, top_face_dof_index, np.pi/2)
+            """
+            DOF 0: pX
+            DOF 1: nX
+            DOF 2: pY
+            DOF 3: nY
+            DOF 4: pZ
+            DOF 5: nZ
+            """
+                
+            #print("AATHIRA : Goal Index ", goal_object_idx)
+            #goal_rigid_bodies = self.gym.get_actor_rigid_body_count(env_ptr, goal_handle)
+            #print("AATHIRA : Goal rigid bodies count", goal_rigid_bodies) 
             # self.gym.set_actor_scale(env_ptr, goal_handle, 0.3)
 
             # add table
@@ -673,7 +766,7 @@ class ShadowHandRubiksCube(BaseTask):
             table_idx = self.gym.get_actor_index(env_ptr, table_handle, gymapi.DOMAIN_SIM)
             self.table_indices.append(table_idx)
             table_rigid_bodies = self.gym.get_actor_rigid_body_count(env_ptr, table_handle)
-            print("AATHIRA : Table rigid bodies count", table_rigid_bodies)
+            #print("AATHIRA : Table rigid bodies count", table_rigid_bodies)
             # object_dof_props = self.gym.get_actor_dof_properties(env_ptr, object_handle)
             # for object_dof_prop in object_dof_props:
             #     object_dof_prop[4] = 1
@@ -740,6 +833,7 @@ class ShadowHandRubiksCube(BaseTask):
 
         self.object_init_state = to_torch(self.object_init_state, device=self.device, dtype=torch.float).view(self.num_envs, 13)
         self.goal_states = self.object_init_state.clone()
+        
         # self.goal_pose = self.goal_states[:, 0:7]
         # self.goal_pos = self.goal_states[:, 0:3]
         # self.goal_rot = self.goal_states[:, 3:7]
@@ -1401,7 +1495,7 @@ class ShadowHandRubiksCube(BaseTask):
         lines for debug when needed
         
         """
-        print("AATHIRA : Inside post_physics_step...")
+        #print("AATHIRA : Inside post_physics_step...")
         self.progress_buf += 1
         self.randomize_buf += 1
 
@@ -1410,13 +1504,13 @@ class ShadowHandRubiksCube(BaseTask):
 
         if self.viewer and self.debug_viz:
             # draw axes on target object
-            print("AATHIRA : inside viewer condition...")
+            #print("AATHIRA : inside viewer condition...")
             self.gym.clear_lines(self.viewer)
             self.gym.refresh_rigid_body_state_tensor(self.sim)
 
             for i in range(self.num_envs):
                 #Aathira changes
-                print("AATHIRA : inside for loop for add_debug_lines")
+                #print("AATHIRA : inside for loop for add_debug_lines")
                 self.add_debug_lines(self.envs[i], self.cube_1_pos[i], self.cube_1_rot[i])
                 self.add_debug_lines(self.envs[i], self.cube_2_pos[i], self.cube_2_rot[i])
                 self.add_debug_lines(self.envs[i], self.cube_3_pos[i], self.cube_3_rot[i])
@@ -1445,7 +1539,9 @@ class ShadowHandRubiksCube(BaseTask):
         self.gym.add_lines(self.viewer, env, 1, [p0[0], p0[1], p0[2], posx[0], posx[1], posx[2]], [0.85, 0.1, 0.1])
         self.gym.add_lines(self.viewer, env, 1, [p0[0], p0[1], p0[2], posy[0], posy[1], posy[2]], [0.1, 0.85, 0.1])
         self.gym.add_lines(self.viewer, env, 1, [p0[0], p0[1], p0[2], posz[0], posz[1], posz[2]], [0.1, 0.1, 0.85])
-
+    
+    """
+    
     def rand_row(self, tensor, dim_needed):  
         row_total = tensor.shape[0]
         return tensor[torch.randint(low=0, high=row_total, size=(dim_needed,)),:]
@@ -1460,6 +1556,7 @@ class ShadowHandRubiksCube(BaseTask):
             sampled_points_id = pointnet2_utils.furthest_point_sample(eff_points.reshape(1, *eff_points.shape), sample_num)
             sampled_points = eff_points.index_select(0, sampled_points_id[0].long())
         return sampled_points
+    
 
     def camera_visulization(self, is_depth_image=False):
         if is_depth_image:
@@ -1478,7 +1575,7 @@ class ShadowHandRubiksCube(BaseTask):
             camera_image = Im.fromarray(camera_image)
         
         return camera_image
-        
+    """    
 #####################################################################
 ###=========================jit functions=========================###
 #####################################################################
