@@ -339,7 +339,7 @@ class ShadowHandRubiksCube(BaseTask):
             color = color_dict[o]
             self.gym.set_rigid_body_color(env_ptr, object_handle, o, gymapi.MESH_VISUAL, color)
 
-    def rotate_rubiks_face(self, env_ptr, actor_handle, face_dofs_index, angle):
+    def rotate_rubiks_face(self, dof_states, env_ptr, actor_handle, face_dofs_index, angle):
         """
         Rotates a specific face of the Rubik's cube by setting the target position
         for all DOFs in that face.
@@ -351,21 +351,19 @@ class ShadowHandRubiksCube(BaseTask):
             face_dofs (list of str): List of DOF names corresponding to the joints in the face to rotate.
             angle (float): The rotation angle in radians. Default is 90 degrees (π/2).
         """
-
+        # Retrieve the current state of all DOFs
+        
         # Loop through each DOF name in the specified face
         for dof_index in face_dofs_index:
             # Get the index of the DOF for this actuator
-            #dof_index = self.gym.get_actor_dof_index(env_ptr, actor_handle, dof_name, gymapi.IndexDomain.DOF)
-            
-            # Retrieve the current state of all DOFs
-            dof_states = self.gym.get_actor_dof_states(env_ptr, actor_handle, gymapi.STATE_ALL)
             
             # Update the position of the DOF for rotation
             dof_states["pos"][dof_index] = angle  # Set target position to the desired angle
             dof_states["vel"][dof_index] = 0      # Set velocity to zero for an instantaneous effect
 
         # Apply the updated DOF states back to the actor
-        self.gym.set_actor_dof_states(env_ptr, actor_handle, dof_states, gymapi.STATE_ALL)
+        return dof_states
+
 
     def _create_envs(self, num_envs, spacing, num_per_row):
         """
@@ -724,14 +722,24 @@ class ShadowHandRubiksCube(BaseTask):
             #dof_handle = self.gym.find_actor_dof_handle(env_ptr, goal_handle, 'nY')
             #self.gym.set_dof_target_position(env_ptr, dof_handle, 1.57)
 
-            top_face_dofs = ["pY", "nY", "pY_pZ", "nY_pZ", "pY_nZ"]
+            #top_face_dofs = ["pX", "pX_pY_2", "nY_pX_2", "pX_pZ_2","nZ_pX_2", "pX_pY_pZ_2", "nZ_pX_pY_2", "nY_pX_pZ_2","nY_nZ_pX_2" ] #
+            right_face_dofs = ["pX", "pX_pY_pZ_0", "nZ_pX_pY_0", "nY_pX_pZ_0","nY_nZ_pX_0", "pX_pY_0", "nY_pX_0", "pX_pZ_0","nZ_pX_0"] #  
+            #top_face_dofs = ["pX", "pX_pY_1", "nY_pX_1", "pX_pZ_1","nZ_pX_1", "pX_pY_pZ_1", "nZ_pX_pY_1", "nY_pX_pZ_1","nY_nZ_pX_1" ]
+            right_face_dof_index = []
+            for dof_index in range(goal_num_dofs):
+                dof_name = self.gym.get_asset_dof_name(goal_asset, dof_index)
+                if dof_name in right_face_dofs:
+                    print(f"DOF {dof_index}: {dof_name}")
+                    right_face_dof_index.append(dof_index)
+
+            top_face_dofs = ["pZ", "pX_pZ_2", "nX_pZ_2", "pY_pZ_2","nY_pZ_2", "pX_pY_pZ_2", "nY_pX_pZ_2", "nX_pY_pZ_2","nX_nY_pZ_2"] #  
+            #top_face_dofs = ["pX", "pX_pY_1", "nY_pX_1", "pX_pZ_1","nZ_pX_1", "pX_pY_pZ_1", "nZ_pX_pY_1", "nY_pX_pZ_1","nY_nZ_pX_1" ]
             top_face_dof_index = []
             for dof_index in range(goal_num_dofs):
                 dof_name = self.gym.get_asset_dof_name(goal_asset, dof_index)
                 if dof_name in top_face_dofs:
                     print(f"DOF {dof_index}: {dof_name}")
                     top_face_dof_index.append(dof_index)
-
             # Step 1: Retrieve the current DOF state for the actor
             #dof_states = self.gym.get_actor_dof_states(env_ptr, goal_handle, gymapi.STATE_ALL)
 
@@ -745,7 +753,11 @@ class ShadowHandRubiksCube(BaseTask):
             
 
 # Call the function to rotate the top face by 90 degrees
-            self.rotate_rubiks_face(env_ptr, goal_handle, top_face_dof_index, np.pi/2)
+            dof_states = self.gym.get_actor_dof_states(env_ptr, goal_handle, gymapi.STATE_ALL)
+        
+            dof_states = self.rotate_rubiks_face(dof_states, env_ptr, goal_handle, right_face_dof_index, np.pi/2)
+            dof_states = self.rotate_rubiks_face(dof_states, env_ptr, goal_handle, top_face_dof_index, np.pi/2)
+            self.gym.set_actor_dof_states(env_ptr, goal_handle, dof_states, gymapi.STATE_ALL)
             """
             DOF 0: pX
             DOF 1: nX
@@ -753,6 +765,66 @@ class ShadowHandRubiksCube(BaseTask):
             DOF 3: nY
             DOF 4: pZ
             DOF 5: nZ
+            DOF 6: pX_pY_0
+            DOF 7: pX_pY_1
+            DOF 8: pX_pY_2
+            DOF 9: nY_pX_0
+            DOF 10: nY_pX_1
+            DOF 11: nY_pX_2
+            DOF 12: pX_pZ_0
+            DOF 13: pX_pZ_1
+            DOF 14: pX_pZ_2
+            DOF 15: nZ_pX_0
+            DOF 16: nZ_pX_1
+            DOF 17: nZ_pX_2
+            DOF 18: nX_pY_0
+            DOF 19: nX_pY_1
+            DOF 20: nX_pY_2
+            DOF 21: nX_nY_0
+            DOF 22: nX_nY_1
+            DOF 23: nX_nY_2
+            DOF 24: nX_pZ_0
+            DOF 25: nX_pZ_1
+            DOF 26: nX_pZ_2
+            DOF 27: nX_nZ_0
+            DOF 28: nX_nZ_1
+            DOF 29: nX_nZ_2
+            DOF 30: pY_pZ_0
+            DOF 31: pY_pZ_1
+            DOF 32: pY_pZ_2
+            DOF 33: nZ_pY_0
+            DOF 34: nZ_pY_1
+            DOF 35: nZ_pY_2
+            DOF 36: nY_pZ_0
+            DOF 37: nY_pZ_1
+            DOF 38: nY_pZ_2
+            DOF 39: nY_nZ_0
+            DOF 40: nY_nZ_1
+            DOF 41: nY_nZ_2
+            DOF 42: pX_pY_pZ_0
+            DOF 43: pX_pY_pZ_1
+            DOF 44: pX_pY_pZ_2
+            DOF 45: nZ_pX_pY_0
+            DOF 46: nZ_pX_pY_1
+            DOF 47: nZ_pX_pY_2
+            DOF 48: nY_pX_pZ_0
+            DOF 49: nY_pX_pZ_1
+            DOF 50: nY_pX_pZ_2
+            DOF 51: nY_nZ_pX_0
+            DOF 52: nY_nZ_pX_1
+            DOF 53: nY_nZ_pX_2
+            DOF 54: nX_pY_pZ_0
+            DOF 55: nX_pY_pZ_1
+            DOF 56: nX_pY_pZ_2
+            DOF 57: nX_nZ_pY_0
+            DOF 58: nX_nZ_pY_1
+            DOF 59: nX_nZ_pY_2
+            DOF 60: nX_nY_pZ_0
+            DOF 61: nX_nY_pZ_1
+            DOF 62: nX_nY_pZ_2
+            DOF 63: nX_nY_nZ_0
+            DOF 64: nX_nY_nZ_1
+            DOF 65: nX_nY_nZ_2
             """
                 
             #print("AATHIRA : Goal Index ", goal_object_idx)
