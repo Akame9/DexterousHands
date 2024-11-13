@@ -24,21 +24,21 @@ env:
   resetDofPosRandomInterval: 0.0
   resetDofVelRandomInterval: 0.0
 
-  distRewardScale: 20
+  distRewardScale: 20  # Aathira : check this value increase or decrease?
   transition_scale: 0.5
   orientation_scale: 0.1
-  rotRewardScale: 1.0
-  rotEps: 0.1
+  rotRewardScale: 1.0  # Aathira : check this value, might want to give higher value if cube rotation is considered.
+  rotEps: 0.1 # Aathira : reduce this value
   actionPenaltyScale: -0.0002
   reachGoalBonus: 250
-  fallDistance: 0.4
-  fallPenalty: 0.0
+  fallDistance: 0.4 # Aathira : check the cube height
+  fallPenalty: 0.0 # Aathira : give a non-zero value
 
   objectType: "pot" # can be block, egg or pen
   observationType: "full_state" # full_state or point_cloud
   handAgentIndex: "[[0, 1, 2, 3, 4, 5]]"
   asymmetric_observations: False
-  successTolerance: 0.1
+  successTolerance: 0.1  # Aathira : reduce this value
   printNumSuccesses: False
   maxConsecutiveSuccesses: 0
 

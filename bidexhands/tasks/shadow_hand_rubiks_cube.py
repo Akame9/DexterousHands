@@ -342,7 +342,7 @@ class ShadowHandRubiksCube(BaseTask):
         return dof_states
 
 
-    def initialize_goal_faces(self, env_ptr):
+    def initialize_goal_faces(self, env_id):
         """
         Initialize and rotate specific faces of the goal cube.
 
@@ -354,7 +354,7 @@ class ShadowHandRubiksCube(BaseTask):
         Returns:
             dof_states: The DOF states after applying the rotations.
         """
-        goal_handle = self.goal_handles.get(env_ptr)
+        goal_handle = self.goal_handles.get(self.key_env_ptr.get(env_id))
         goal_num_dofs = self.gym.get_actor_dof_count(env_ptr, goal_handle)
 
         # Define face DOFs for right, top, bottom, and left faces
@@ -604,11 +604,15 @@ class ShadowHandRubiksCube(BaseTask):
         for ft_a_handle in self.fingertip_another_handles:
             self.gym.create_asset_force_sensor(shadow_hand_another_asset, ft_a_handle, sensor_pose)
 
+        self.goal_dof_states = []
+        self.object_dof_states = []
+        self.key_env_ptr = {} 
         for i in range(self.num_envs):
             # create env instance
             env_ptr = self.gym.create_env(
                 self.sim, lower, upper, num_per_row
             )
+            self.key_env_ptr[i] = env_ptr
 
             if self.aggregate_mode >= 1:
                 self.gym.begin_aggregate(env_ptr, max_agg_bodies, max_agg_shapes, True)
@@ -664,6 +668,8 @@ class ShadowHandRubiksCube(BaseTask):
             
             # add object
             object_handle = self.gym.create_actor(env_ptr, object_asset, object_start_pose, "object", i, 0, 0)
+            self.object_handles = {}
+            self.object_handles[i] = object_handle
             self.object_init_state.append([object_start_pose.p.x, object_start_pose.p.y, object_start_pose.p.z,
                                            object_start_pose.r.x, object_start_pose.r.y, object_start_pose.r.z, object_start_pose.r.w,
                                            0, 0, 0, 0, 0, 0])
@@ -682,14 +688,15 @@ class ShadowHandRubiksCube(BaseTask):
             # add goal object
             goal_handle = self.gym.create_actor(env_ptr, self.goal_asset, goal_start_pose, "goal_object", i+self.num_envs , 0, 0) 
             self.goal_handles = {}
-            self.goal_handles.put(env_ptr,goal_handle)
+            self.goal_handles[i] = goal_handle
             #self.gym.set_actor_dof_properties(env_ptr, goal_handle, object_dof_props)
             goal_object_idx = self.gym.get_actor_index(env_ptr, goal_handle, gymapi.DOMAIN_SIM)
             self.goal_object_indices.append(goal_object_idx)
             self.add_cube_colors(env_ptr, goal_handle)
 
             # NOTE : get_actor_dof_states is being called inside initialize_goal_faces()
-            dof_states = self.initialize_goal_faces(env_ptr)
+            goal_dof_state = self.initialize_goal_faces(i)
+            self.goal_dof_states.append(goal_dof_state)
             #print("AATHIRA : Dof states after right rotation : ", self.gym.get_actor_dof_states(env_ptr, goal_handle, gymapi.STATE_ALL))
             
 
@@ -759,6 +766,8 @@ class ShadowHandRubiksCube(BaseTask):
         self.table_indices = to_torch(self.table_indices, dtype=torch.long, device=self.device)
         self.bucket_indices = to_torch(self.bucket_indices, dtype=torch.long, device=self.device)
         self.ball_indices = to_torch(self.ball_indices, dtype=torch.long, device=self.device)
+        self.goal_dof_states = to_torch(self.goal_dof_states, dtype=torch.long, device=self.device)
+        self.object_dof_states = to_torch(self.object_dof_states, dtype=torch.long, device=self.device)
 
     def compute_reward(self, actions):
         """
@@ -783,7 +792,7 @@ class ShadowHandRubiksCube(BaseTask):
             self.left_hand_ff_pos, self.left_hand_mf_pos, self.left_hand_rf_pos, self.left_hand_lf_pos, self.left_hand_th_pos, 
             self.dist_reward_scale, self.rot_reward_scale, self.rot_eps, self.actions, self.action_penalty_scale,
             self.success_tolerance, self.reach_goal_bonus, self.fall_dist, self.fall_penalty,
-            self.max_consecutive_successes, self.av_factor, (self.object_type == "pen")
+            self.max_consecutive_successes, self.av_factor, (self.object_type == "pen"), self.num_envs, self.object_dof_states, self.goal_dof_states
         )
 
         """
@@ -824,75 +833,13 @@ class ShadowHandRubiksCube(BaseTask):
         self.object_angvel = self.root_state_tensor[self.object_indices, 10:13]
         
         #AATHIRA
-        self.scissors_right_handle_pos = self.rigid_body_states[:, 26 * 2 + 2, 0:3]
-        self.scissors_right_handle_rot = self.rigid_body_states[:, 26 * 2 + 2, 3:7]
-        self.scissors_right_handle_pos = self.scissors_right_handle_pos + quat_apply(self.scissors_right_handle_rot, to_torch([0, 1, 0], device=self.device).repeat(self.num_envs, 1) * -0.)
-        self.scissors_right_handle_pos = self.scissors_right_handle_pos + quat_apply(self.scissors_right_handle_rot, to_torch([1, 0, 0], device=self.device).repeat(self.num_envs, 1) * 0.2)
-        self.scissors_right_handle_pos = self.scissors_right_handle_pos + quat_apply(self.scissors_right_handle_rot, to_torch([0, 0, 1], device=self.device).repeat(self.num_envs, 1) * -0.1)
-
-        self.scissors_left_handle_pos = self.rigid_body_states[:, 26 * 2 + 1, 0:3]
-        self.scissors_left_handle_rot = self.rigid_body_states[:, 26 * 2 + 1, 3:7]
-        self.scissors_left_handle_pos = self.scissors_left_handle_pos + quat_apply(self.scissors_left_handle_rot, to_torch([0, 1, 0], device=self.device).repeat(self.num_envs, 1) * 0.0)
-        self.scissors_left_handle_pos = self.scissors_left_handle_pos + quat_apply(self.scissors_left_handle_rot, to_torch([1, 0, 0], device=self.device).repeat(self.num_envs, 1) * 0.15)
-        self.scissors_left_handle_pos = self.scissors_left_handle_pos + quat_apply(self.scissors_left_handle_rot, to_torch([0, 0, 1], device=self.device).repeat(self.num_envs, 1) * 0.1)
-        
-        self.cube_1_pos = self.rigid_body_states[:, 26 * 2 + 1, 0:3]
-        self.cube_1_rot = self.rigid_body_states[:, 26 * 2 + 1, 3:7] 
-        #self.cube_1_pos = self.cube_1_pos + quat_apply(self.cube_1_rot, to_torch([0, 1, 0], device=self.device).repeat(self.num_envs, 1) * -0.)
-        #self.cube_1_pos = self.cube_1_pos + quat_apply(self.cube_1_rot, to_torch([1, 0, 0], device=self.device).repeat(self.num_envs, 1) * 0.2)
-        #self.cube_1_pos = self.cube_1_pos + quat_apply(self.cube_1_rot, to_torch([0, 0, 1], device=self.device).repeat(self.num_envs, 1) * -0.1)
-        self.cube_2_pos = self.rigid_body_states[:, 26 * 2 + 2, 0:3]
-        self.cube_2_rot = self.rigid_body_states[:, 26 * 2 + 2, 3:7]
-        self.cube_3_pos = self.rigid_body_states[:, 26 * 2 + 3, 0:3]
-        self.cube_3_rot = self.rigid_body_states[:, 26 * 2 + 3, 3:7]
-        self.cube_4_pos = self.rigid_body_states[:, 26 * 2 + 4, 0:3]
-        self.cube_4_rot = self.rigid_body_states[:, 26 * 2 + 4, 3:7]
-        self.cube_5_pos = self.rigid_body_states[:, 26 * 2 + 5, 0:3]
-        self.cube_5_rot = self.rigid_body_states[:, 26 * 2 + 5, 3:7]
-        self.cube_6_pos = self.rigid_body_states[:, 26 * 2 + 6, 0:3]
-        self.cube_6_rot = self.rigid_body_states[:, 26 * 2 + 6, 3:7]
-        self.cube_7_pos = self.rigid_body_states[:, 26 * 2 + 7, 0:3]
-        self.cube_7_rot = self.rigid_body_states[:, 26 * 2 + 7, 3:7]
-        self.cube_8_pos = self.rigid_body_states[:, 26 * 2 + 8, 0:3]
-        self.cube_8_rot = self.rigid_body_states[:, 26 * 2 + 8, 3:7]
-        self.cube_9_pos = self.rigid_body_states[:, 26 * 2 + 9, 0:3]
-        self.cube_9_rot = self.rigid_body_states[:, 26 * 2 + 9, 3:7]
-        self.cube_10_pos = self.rigid_body_states[:, 26 * 2 + 10, 0:3]
-        self.cube_10_rot = self.rigid_body_states[:, 26 * 2 + 10, 3:7]
-        self.cube_11_pos = self.rigid_body_states[:, 26 * 2 + 11, 0:3]
-        self.cube_11_rot = self.rigid_body_states[:, 26 * 2 + 11, 3:7]
-        self.cube_12_pos = self.rigid_body_states[:, 26 * 2 + 12, 0:3]
-        self.cube_12_rot = self.rigid_body_states[:, 26 * 2 + 12, 3:7]
-        self.cube_13_pos = self.rigid_body_states[:, 26 * 2 + 13, 0:3]
-        self.cube_13_rot = self.rigid_body_states[:, 26 * 2 + 13, 3:7]
-        self.cube_14_pos = self.rigid_body_states[:, 26 * 2 + 14, 0:3]
-        self.cube_14_rot = self.rigid_body_states[:, 26 * 2 + 14, 3:7]
-        self.cube_15_pos = self.rigid_body_states[:, 26 * 2 + 15, 0:3]
-        self.cube_15_rot = self.rigid_body_states[:, 26 * 2 + 15, 3:7]
-        self.cube_16_pos = self.rigid_body_states[:, 26 * 2 + 16, 0:3]
-        self.cube_16_rot = self.rigid_body_states[:, 26 * 2 + 16, 3:7]
-        self.cube_17_pos = self.rigid_body_states[:, 26 * 2 + 17, 0:3]
-        self.cube_17_rot = self.rigid_body_states[:, 26 * 2 + 17, 3:7]
-        self.cube_18_pos = self.rigid_body_states[:, 26 * 2 + 18, 0:3]
-        self.cube_18_rot = self.rigid_body_states[:, 26 * 2 + 18, 3:7]
-        self.cube_19_pos = self.rigid_body_states[:, 26 * 2 + 19, 0:3]
-        self.cube_19_rot = self.rigid_body_states[:, 26 * 2 + 19, 3:7]
-        self.cube_20_pos = self.rigid_body_states[:, 26 * 2 + 20, 0:3]
-        self.cube_20_rot = self.rigid_body_states[:, 26 * 2 + 20, 3:7]
-        self.cube_21_pos = self.rigid_body_states[:, 26 * 2 + 21, 0:3]
-        self.cube_21_rot = self.rigid_body_states[:, 26 * 2 + 21, 3:7]
-        self.cube_22_pos = self.rigid_body_states[:, 26 * 2 + 22, 0:3]
-        self.cube_22_rot = self.rigid_body_states[:, 26 * 2 + 22, 3:7]
-        self.cube_23_pos = self.rigid_body_states[:, 26 * 2 + 23, 0:3]
-        self.cube_23_rot = self.rigid_body_states[:, 26 * 2 + 23, 3:7]
-        self.cube_24_pos = self.rigid_body_states[:, 26 * 2 + 24, 0:3]
-        self.cube_24_rot = self.rigid_body_states[:, 26 * 2 + 24, 3:7]
-        self.cube_25_pos = self.rigid_body_states[:, 26 * 2 + 25, 0:3]
-        self.cube_25_rot = self.rigid_body_states[:, 26 * 2 + 25, 3:7]
-        self.cube_26_pos = self.rigid_body_states[:, 26 * 2 + 26, 0:3]
-        self.cube_26_rot = self.rigid_body_states[:, 26 * 2 + 26, 3:7]
-        self.cube_27_pos = self.rigid_body_states[:, 26 * 2 + 27, 0:3]
-        self.cube_27_rot = self.rigid_body_states[:, 26 * 2 + 27, 3:7]
+        obj_dof_states = []
+        for i in range(self.num_envs):
+            object_handle = self.object_handles.get(i)
+            env_ptr = self.key_env_ptr.get(i)
+            dof_states = self.gym.get_actor_dof_states(env_ptr, object_handle, gymapi.STATE_ALL)
+            obj_dof_states.append(dof_states)
+        self.object_dof_states = obj_dof_states
 
         self.left_hand_pos = self.rigid_body_states[:, 3 + 26, 0:3]
         self.left_hand_rot = self.rigid_body_states[:, 3 + 26, 3:7]
@@ -1036,11 +983,16 @@ class ShadowHandRubiksCube(BaseTask):
         self.obs_buf[:, obj_obs_start + 7:obj_obs_start + 10] = self.object_linvel
         self.obs_buf[:, obj_obs_start + 10:obj_obs_start + 13] = self.vel_obs_scale * self.object_angvel
         
-        cubes_positions = [self.cube_1_pos, self.cube_2_pos, self.cube_3_pos, self.cube_4_pos, self.cube_5_pos, self.cube_6_pos, self.cube_7_pos, self.cube_8_pos,
-                           self.cube_9_pos, self.cube_10_pos, self.cube_11_pos, self.cube_12_pos, self.cube_13_pos, self.cube_14_pos, self.cube_15_pos, self.cube_16_pos, 
-                           self.cube_17_pos, self.cube_18_pos, self.cube_19_pos, self.cube_20_pos, self.cube_21_pos, self.cube_22_pos, self.cube_23_pos, self.cube_24_pos, 
-                           self.cube_25_pos, self.cube_26_pos, self.cube_27_pos]  # List of all cube position tensors
-        self.obs_buf[:, obj_obs_start + 13:obj_obs_start + 94] = torch.cat(cubes_positions, dim=1)
+        #cubes_positions = [self.cube_1_pos, self.cube_2_pos, self.cube_3_pos, self.cube_4_pos, self.cube_5_pos, self.cube_6_pos, self.cube_7_pos, self.cube_8_pos,
+        #                   self.cube_9_pos, self.cube_10_pos, self.cube_11_pos, self.cube_12_pos, self.cube_13_pos, self.cube_14_pos, self.cube_15_pos, self.cube_16_pos, 
+        #                   self.cube_17_pos, self.cube_18_pos, self.cube_19_pos, self.cube_20_pos, self.cube_21_pos, self.cube_22_pos, self.cube_23_pos, self.cube_24_pos, 
+        #                   self.cube_25_pos, self.cube_26_pos, self.cube_27_pos]  # List of all cube position tensors
+        
+        #self.obs_buf[:, obj_obs_start + 13:obj_obs_start + 94] = torch.cat(cubes_positions, dim=1)
+        object_dof_states_start = obj_obs_start + 13
+        num_object_dof_states = self.object_dof_states.shape[1] * self.object_dof_states.shape[2]
+        print("AATHIRA : num_object_dof_states : ", num_object_dof_states)
+        self.obs_buf[:, object_dof_states_start:object_dof_states_start + num_object_dof_states] = self.object_dof_states.reshape(self.num_envs, num_object_dof_states)
 
     def reset_target_pose(self, env_ids, apply_reset=False):
         """
@@ -1062,7 +1014,7 @@ class ShadowHandRubiksCube(BaseTask):
         self.root_state_tensor[self.goal_object_indices[env_ids], 3:7] = self.goal_init_state[3:7]
         self.root_state_tensor[self.goal_object_indices[env_ids], 7:13] = torch.zeros_like(self.root_state_tensor[self.goal_object_indices[env_ids], 7:13])
 
-        dof_states = self.initialize_goal_faces(env_ids)
+        #dof_states = self.initialize_goal_faces(env_ids)
 
         if apply_reset:
             goal_object_indices = self.goal_object_indices[env_ids].to(torch.int32)
@@ -1177,6 +1129,7 @@ class ShadowHandRubiksCube(BaseTask):
         """
         env_ids = self.reset_buf.nonzero(as_tuple=False).squeeze(-1)
         goal_env_ids = self.reset_goal_buf.nonzero(as_tuple=False).squeeze(-1)
+        print("AATHIRA : Goal Env IDs : ", goal_env_ids)
 
         """
         # if only goals need reset, then call set API
@@ -1295,7 +1248,8 @@ def compute_hand_reward(
     dist_reward_scale: float, rot_reward_scale: float, rot_eps: float,
     actions, action_penalty_scale: float,
     success_tolerance: float, reach_goal_bonus: float, fall_dist: float,
-    fall_penalty: float, max_consecutive_successes: int, av_factor: float, ignore_z_rot: bool
+    fall_penalty: float, max_consecutive_successes: int, av_factor: float, ignore_z_rot: bool,
+    num_envs, object_dof_states, goal_dof_states
 ):
     """
     Compute the reward of all environment.
@@ -1372,7 +1326,58 @@ def compute_hand_reward(
     # Check if progress_buf is greater than maximumn episode length then reset the environment(update the reset buffer).
     # Ignore calculating goal_resets, successes, consecutive_successes for now. 
     
-    return reward, resets, goal_resets, progress_buf, successes, cons_successes
+
+    """
+    Compute the reward of all environments in this function. Various components of the reward function
+    are calculated based on the positions and orientations of the objects, hands, and targets.
+    """
+
+    # Calculate distance reward (distance between object and target)
+    dist = torch.norm(object_pos - target_pos, dim=-1)
+    dist_rew = dist_reward_scale / (dist + 0.1)
+    
+    # Calculate rotation reward (orientation difference between object and target)
+    rot_dist = torch.norm(object_rot - target_rot, dim=-1)
+    rot_rew = rot_reward_scale / (rot_dist + rot_eps)
+
+    # Reward based on hand proximity to the cube object
+    right_hand_dist = torch.norm(right_hand_pos - object_pos, dim=-1)
+    left_hand_dist = torch.norm(left_hand_pos - object_pos, dim=-1)
+    hand_rew = -0.5 * (right_hand_dist + left_hand_dist)
+
+    # Success criteria for reaching the goal
+    goal_reached = (dist < success_tolerance) & (rot_dist < rot_eps) # Add cubelet pos and rot
+    goal_rew = goal_reached.float() * reach_goal_bonus
+
+    # Calculate DOF distance reward (distance between object DOF states and goal DOF states)
+    num_object_dof_states = object_dof_states.shape[1] * object_dof_states.shape[2]
+    object_dof_states_reshaped = object_dof_states.reshape(num_envs, num_object_dof_states)
+    goal_dof_states_reshaped = goal_dof_states.reshape(num_envs, num_object_dof_states)
+    dof_dist = torch.norm(object_dof_states_reshaped - goal_dof_states_reshaped, dim=-1)
+    dof_rew = 20 / (dof_dist + 0.1)
+
+    # Action penalty for stabilizing actions
+    #action_penalty = torch.sum(actions ** 2, dim=-1)
+    #action_penalty_rew = -action_penalty_scale * action_penalty
+
+    # Apply all components to compute the final reward
+    rew_buf[:] = dist_rew + rot_rew + goal_rew + hand_rew + dof_rew #+ action_penalty_rew
+
+    # Check if object fell out of reach and apply fall penalty
+    fell = (right_hand_dist > fall_dist) | (left_hand_dist > fall_dist)
+    fall_rew = fell.float() * fall_penalty
+    rew_buf += fall_rew
+
+    # Reset environment if max episode length reached or object fell
+    resets = (progress_buf >= max_episode_length) | fell | goal_reached
+    reset_buf[:] = resets.float()
+
+    # Track successes and apply resets for goal-reaching environments
+    #successes += goal_reached.float()
+    #goal_resets = goal_reached & (successes >= max_consecutive_successes)
+    #reset_goal_buf[:] = goal_resets.float()
+    
+    return rew_buf, reset_buf, reset_goal_buf, progress_buf, successes, consecutive_successes
 
 @torch.jit.script
 def randomize_rotation(rand0, rand1, x_unit_tensor, y_unit_tensor):
@@ -1388,6 +1393,65 @@ def randomize_rotation_pen(rand0, rand1, max_angle, x_unit_tensor, y_unit_tensor
 
 
 """
+====================================================================================================================================
+        self.cube_1_pos = self.rigid_body_states[:, 26 * 2 + 1, 0:3]
+        self.cube_1_rot = self.rigid_body_states[:, 26 * 2 + 1, 3:7] 
+        #self.cube_1_pos = self.cube_1_pos + quat_apply(self.cube_1_rot, to_torch([0, 1, 0], device=self.device).repeat(self.num_envs, 1) * -0.)
+        #self.cube_1_pos = self.cube_1_pos + quat_apply(self.cube_1_rot, to_torch([1, 0, 0], device=self.device).repeat(self.num_envs, 1) * 0.2)
+        #self.cube_1_pos = self.cube_1_pos + quat_apply(self.cube_1_rot, to_torch([0, 0, 1], device=self.device).repeat(self.num_envs, 1) * -0.1)
+        self.cube_2_pos = self.rigid_body_states[:, 26 * 2 + 2, 0:3]
+        self.cube_2_rot = self.rigid_body_states[:, 26 * 2 + 2, 3:7]
+        self.cube_3_pos = self.rigid_body_states[:, 26 * 2 + 3, 0:3]
+        self.cube_3_rot = self.rigid_body_states[:, 26 * 2 + 3, 3:7]
+        self.cube_4_pos = self.rigid_body_states[:, 26 * 2 + 4, 0:3]
+        self.cube_4_rot = self.rigid_body_states[:, 26 * 2 + 4, 3:7]
+        self.cube_5_pos = self.rigid_body_states[:, 26 * 2 + 5, 0:3]
+        self.cube_5_rot = self.rigid_body_states[:, 26 * 2 + 5, 3:7]
+        self.cube_6_pos = self.rigid_body_states[:, 26 * 2 + 6, 0:3]
+        self.cube_6_rot = self.rigid_body_states[:, 26 * 2 + 6, 3:7]
+        self.cube_7_pos = self.rigid_body_states[:, 26 * 2 + 7, 0:3]
+        self.cube_7_rot = self.rigid_body_states[:, 26 * 2 + 7, 3:7]
+        self.cube_8_pos = self.rigid_body_states[:, 26 * 2 + 8, 0:3]
+        self.cube_8_rot = self.rigid_body_states[:, 26 * 2 + 8, 3:7]
+        self.cube_9_pos = self.rigid_body_states[:, 26 * 2 + 9, 0:3]
+        self.cube_9_rot = self.rigid_body_states[:, 26 * 2 + 9, 3:7]
+        self.cube_10_pos = self.rigid_body_states[:, 26 * 2 + 10, 0:3]
+        self.cube_10_rot = self.rigid_body_states[:, 26 * 2 + 10, 3:7]
+        self.cube_11_pos = self.rigid_body_states[:, 26 * 2 + 11, 0:3]
+        self.cube_11_rot = self.rigid_body_states[:, 26 * 2 + 11, 3:7]
+        self.cube_12_pos = self.rigid_body_states[:, 26 * 2 + 12, 0:3]
+        self.cube_12_rot = self.rigid_body_states[:, 26 * 2 + 12, 3:7]
+        self.cube_13_pos = self.rigid_body_states[:, 26 * 2 + 13, 0:3]
+        self.cube_13_rot = self.rigid_body_states[:, 26 * 2 + 13, 3:7]
+        self.cube_14_pos = self.rigid_body_states[:, 26 * 2 + 14, 0:3]
+        self.cube_14_rot = self.rigid_body_states[:, 26 * 2 + 14, 3:7]
+        self.cube_15_pos = self.rigid_body_states[:, 26 * 2 + 15, 0:3]
+        self.cube_15_rot = self.rigid_body_states[:, 26 * 2 + 15, 3:7]
+        self.cube_16_pos = self.rigid_body_states[:, 26 * 2 + 16, 0:3]
+        self.cube_16_rot = self.rigid_body_states[:, 26 * 2 + 16, 3:7]
+        self.cube_17_pos = self.rigid_body_states[:, 26 * 2 + 17, 0:3]
+        self.cube_17_rot = self.rigid_body_states[:, 26 * 2 + 17, 3:7]
+        self.cube_18_pos = self.rigid_body_states[:, 26 * 2 + 18, 0:3]
+        self.cube_18_rot = self.rigid_body_states[:, 26 * 2 + 18, 3:7]
+        self.cube_19_pos = self.rigid_body_states[:, 26 * 2 + 19, 0:3]
+        self.cube_19_rot = self.rigid_body_states[:, 26 * 2 + 19, 3:7]
+        self.cube_20_pos = self.rigid_body_states[:, 26 * 2 + 20, 0:3]
+        self.cube_20_rot = self.rigid_body_states[:, 26 * 2 + 20, 3:7]
+        self.cube_21_pos = self.rigid_body_states[:, 26 * 2 + 21, 0:3]
+        self.cube_21_rot = self.rigid_body_states[:, 26 * 2 + 21, 3:7]
+        self.cube_22_pos = self.rigid_body_states[:, 26 * 2 + 22, 0:3]
+        self.cube_22_rot = self.rigid_body_states[:, 26 * 2 + 22, 3:7]
+        self.cube_23_pos = self.rigid_body_states[:, 26 * 2 + 23, 0:3]
+        self.cube_23_rot = self.rigid_body_states[:, 26 * 2 + 23, 3:7]
+        self.cube_24_pos = self.rigid_body_states[:, 26 * 2 + 24, 0:3]
+        self.cube_24_rot = self.rigid_body_states[:, 26 * 2 + 24, 3:7]
+        self.cube_25_pos = self.rigid_body_states[:, 26 * 2 + 25, 0:3]
+        self.cube_25_rot = self.rigid_body_states[:, 26 * 2 + 25, 3:7]
+        self.cube_26_pos = self.rigid_body_states[:, 26 * 2 + 26, 0:3]
+        self.cube_26_rot = self.rigid_body_states[:, 26 * 2 + 26, 3:7]
+        self.cube_27_pos = self.rigid_body_states[:, 26 * 2 + 27, 0:3]
+        self.cube_27_rot = self.rigid_body_states[:, 26 * 2 + 27, 3:7]
+
 ======================================================================================================================
 DOF 0: pX
             DOF 1: nX
