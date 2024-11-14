@@ -137,7 +137,7 @@ class ShadowHandRubiksCube(BaseTask):
         self.num_obs_dict = {
             "point_cloud": 417 + self.num_point_cloud_feature_dim * 3,
             "point_cloud_for_distill": 417 + self.num_point_cloud_feature_dim * 3,
-            "full_state": 502 #417
+            "full_state": 553 #502 #417
         }
         self.num_hand_obs = 72 + 95 + 26 + 6
         self.up_axis = 'z'
@@ -193,9 +193,7 @@ class ShadowHandRubiksCube(BaseTask):
     
         #Aathira change
         num_actors = actor_root_state_tensor.shape[0]
-        print("Aathira : Number of actors:", num_actors)
         num_rigid_bodies = rigid_body_tensor.shape
-        print("Aathira : Number of rigid bodies:", num_rigid_bodies)
 
 
         sensor_tensor = self.gym.acquire_force_sensor_tensor(self.sim)
@@ -354,7 +352,8 @@ class ShadowHandRubiksCube(BaseTask):
         Returns:
             dof_states: The DOF states after applying the rotations.
         """
-        goal_handle = self.goal_handles.get(self.key_env_ptr.get(env_id))
+        env_ptr = self.key_env_ptr.get(env_id)
+        goal_handle = self.goal_handles.get(env_id)
         goal_num_dofs = self.gym.get_actor_dof_count(env_ptr, goal_handle)
 
         # Define face DOFs for right, top, bottom, and left faces
@@ -367,7 +366,7 @@ class ShadowHandRubiksCube(BaseTask):
 
         # Helper to get DOF indices
         def get_dof_indices(dofs):
-            return [dof_index for dof_index in range(goal_num_dofs) if self.gym.get_asset_dof_name(goal_asset, dof_index) in dofs]
+            return [dof_index for dof_index in range(goal_num_dofs) if self.gym.get_asset_dof_name(self.goal_asset, dof_index) in dofs]
 
         # Collect DOF indices for each face
         right_face_dof_index = get_dof_indices(right_face_dofs)
@@ -389,8 +388,8 @@ class ShadowHandRubiksCube(BaseTask):
             
         # Additional rotations can be applied as needed
         self.gym.set_actor_dof_states(env_ptr, goal_handle, dof_states, gymapi.STATE_ALL)
-
-        return dof_states
+        #print(f"AATHIRA : dof_states {count}:  ", dof_states)
+        return dof_states.copy()
 
     def _create_envs(self, num_envs, spacing, num_per_row):
         """
@@ -416,8 +415,6 @@ class ShadowHandRubiksCube(BaseTask):
             asset_root = self.cfg["env"]["asset"].get("assetRoot", asset_root)
             shadow_hand_asset_file = self.cfg["env"]["asset"].get("assetFileName", shadow_hand_asset_file)
 
-        # load ball asset
-        ball_asset = self.gym.create_sphere(self.sim, 0.005, gymapi.AssetOptions())
         object_asset_file = self.asset_files_dict[self.object_type]
 
         # load shadow hand_ asset
@@ -489,6 +486,16 @@ class ShadowHandRubiksCube(BaseTask):
             self.shadow_hand_dof_default_pos.append(0.0)
             self.shadow_hand_dof_default_vel.append(0.0)
 
+        for dof_index in range(self.num_shadow_hand_dofs): 
+            shadow_hand_dof_name1 = self.gym.get_asset_dof_name(shadow_hand_asset, dof_index)
+            print("shadow_hand_asset : ")
+            print(f"{dof_index} : {shadow_hand_dof_name1}")
+            
+        for dof_index in range(self.num_shadow_hand_dofs): 
+            shadow_hand_dof_name2 = self.gym.get_asset_dof_name(shadow_hand_another_asset, dof_index)
+            print("shadow_hand_another_asset : ")
+            print(f"{dof_index} : {shadow_hand_dof_name2}")
+
         self.actuated_dof_indices = to_torch(self.actuated_dof_indices, dtype=torch.long, device=self.device)
         self.shadow_hand_dof_lower_limits = to_torch(self.shadow_hand_dof_lower_limits, device=self.device)
         self.shadow_hand_dof_upper_limits = to_torch(self.shadow_hand_dof_upper_limits, device=self.device)
@@ -508,6 +515,7 @@ class ShadowHandRubiksCube(BaseTask):
         # object_asset_options.vhacd_params = gymapi.VhacdParams()
         # object_asset_options.vhacd_params.resolution = 100000
 
+        
         object_asset = self.gym.load_asset(self.sim, asset_root, object_asset_file, object_asset_options)
 
         object_asset_options.disable_gravity = True
@@ -548,13 +556,13 @@ class ShadowHandRubiksCube(BaseTask):
         """
         shadow_hand_start_pose = gymapi.Transform()
         #shadow_hand_start_pose.p = gymapi.Vec3(0.55, 0.5, 0.8)
-        shadow_hand_start_pose.p = gymapi.Vec3(0, 0.3, 0.8)
+        shadow_hand_start_pose.p = gymapi.Vec3(0.35, 0.15, 0.8)
         # AATHIRA : Turn hand
         shadow_hand_start_pose.r = gymapi.Quat().from_euler_zyx(3.14159, 0+1.57, 1.57)
 
         shadow_another_hand_start_pose = gymapi.Transform()
         #shadow_hand_start_pose.p = gymapi.Vec3(0.55, 0.5, 0.8)
-        shadow_another_hand_start_pose.p = gymapi.Vec3(0, -0.3, 0.8)
+        shadow_another_hand_start_pose.p = gymapi.Vec3(0.35, -0.15, 0.8)
         shadow_another_hand_start_pose.r = gymapi.Quat().from_euler_zyx(3.14159, 0-1.57, 1.57)
 
         object_start_pose = gymapi.Transform()
@@ -568,9 +576,8 @@ class ShadowHandRubiksCube(BaseTask):
             [self.goal_displacement.x, self.goal_displacement.y, self.goal_displacement.z], device=self.device)
         goal_start_pose = gymapi.Transform()
         goal_start_pose.p = object_start_pose.p + self.goal_displacement
-        #goal_start_pose.p.z -= 0.0
         goal_start_pose.r = gymapi.Quat().from_euler_zyx(0, 0, 1.57)  
-
+        
         table_pose = gymapi.Transform()
         table_pose.p = gymapi.Vec3(0.0, 0.0, 0.5 * table_dims.z)
         table_pose.r = gymapi.Quat().from_euler_zyx(-0., 0, 0)
@@ -604,9 +611,12 @@ class ShadowHandRubiksCube(BaseTask):
         for ft_a_handle in self.fingertip_another_handles:
             self.gym.create_asset_force_sensor(shadow_hand_another_asset, ft_a_handle, sensor_pose)
 
+        #Aathira changes
         self.goal_dof_states = []
-        self.object_dof_states = []
         self.key_env_ptr = {} 
+        self.object_handles = {}
+        self.goal_handles = {}
+        
         for i in range(self.num_envs):
             # create env instance
             env_ptr = self.gym.create_env(
@@ -656,19 +666,15 @@ class ShadowHandRubiksCube(BaseTask):
                 colorz = random.uniform(0, 1)
                 for m in n:
                     for o in hand_rigid_body_index[m]:
-                        # Aathira : setting rigid body color for each rigid body of an actor.
                         self.gym.set_rigid_body_color(env_ptr, shadow_hand_another_actor, o, gymapi.MESH_VISUAL,
                                                 gymapi.Vec3(colorx, colory, colorz))
-                # gym.set_rigid_body_texture(env, actor_handles[-1], n, gymapi.MESH_VISUAL,
-                #                            loaded_texture_handle_list[random.randint(0, len(loaded_texture_handle_list)-1)])
-
+               
             # create fingertip force-torque sensors
             self.gym.enable_actor_dof_force_sensors(env_ptr, shadow_hand_actor)
             self.gym.enable_actor_dof_force_sensors(env_ptr, shadow_hand_another_actor)
             
             # add object
             object_handle = self.gym.create_actor(env_ptr, object_asset, object_start_pose, "object", i, 0, 0)
-            self.object_handles = {}
             self.object_handles[i] = object_handle
             self.object_init_state.append([object_start_pose.p.x, object_start_pose.p.y, object_start_pose.p.z,
                                            object_start_pose.r.x, object_start_pose.r.y, object_start_pose.r.z, object_start_pose.r.w,
@@ -687,7 +693,6 @@ class ShadowHandRubiksCube(BaseTask):
 
             # add goal object
             goal_handle = self.gym.create_actor(env_ptr, self.goal_asset, goal_start_pose, "goal_object", i+self.num_envs , 0, 0) 
-            self.goal_handles = {}
             self.goal_handles[i] = goal_handle
             #self.gym.set_actor_dof_properties(env_ptr, goal_handle, object_dof_props)
             goal_object_idx = self.gym.get_actor_index(env_ptr, goal_handle, gymapi.DOMAIN_SIM)
@@ -697,7 +702,6 @@ class ShadowHandRubiksCube(BaseTask):
             # NOTE : get_actor_dof_states is being called inside initialize_goal_faces()
             goal_dof_state = self.initialize_goal_faces(i)
             self.goal_dof_states.append(goal_dof_state)
-            #print("AATHIRA : Dof states after right rotation : ", self.gym.get_actor_dof_states(env_ptr, goal_handle, gymapi.STATE_ALL))
             
 
             # add table
@@ -705,9 +709,7 @@ class ShadowHandRubiksCube(BaseTask):
             self.gym.set_rigid_body_texture(env_ptr, table_handle, 0, gymapi.MESH_VISUAL, table_texture_handle)
             table_idx = self.gym.get_actor_index(env_ptr, table_handle, gymapi.DOMAIN_SIM)
             self.table_indices.append(table_idx)
-            table_rigid_bodies = self.gym.get_actor_rigid_body_count(env_ptr, table_handle)
             
-            #print("AATHIRA : Table rigid bodies count", table_rigid_bodies)
             
             """
             AATHIRA : Hand rigid bodies count 26
@@ -725,19 +727,12 @@ class ShadowHandRubiksCube(BaseTask):
             """
             
             #set friction
-            another_hand_shape_props = self.gym.get_actor_rigid_shape_properties(env_ptr, shadow_hand_another_actor)
-            object_shape_props = self.gym.get_actor_rigid_shape_properties(env_ptr, object_handle)
-            another_hand_shape_props[0].friction = 1
-            object_shape_props[0].friction = 1
-            self.gym.set_actor_rigid_shape_properties(env_ptr, shadow_hand_another_actor, another_hand_shape_props)
-            self.gym.set_actor_rigid_shape_properties(env_ptr, object_handle, object_shape_props)
-            
-            # Aathira : Object color
-            if self.object_type != "block" and self.object_type != "egg" :  #and self.object_type != "pot"
-                self.gym.set_rigid_body_color(
-                    env_ptr, object_handle, 0, gymapi.MESH_VISUAL, gymapi.Vec3(0.6, 0.72, 0.98))
-                self.gym.set_rigid_body_color(
-                    env_ptr, goal_handle, 0, gymapi.MESH_VISUAL, gymapi.Vec3(0.6, 0.72, 0.98))
+            #another_hand_shape_props = self.gym.get_actor_rigid_shape_properties(env_ptr, shadow_hand_another_actor)
+            #object_shape_props = self.gym.get_actor_rigid_shape_properties(env_ptr, object_handle)
+            #another_hand_shape_props[0].friction = 1
+            #object_shape_props[0].friction = 1
+            #self.gym.set_actor_rigid_shape_properties(env_ptr, shadow_hand_another_actor, another_hand_shape_props)
+            #self.gym.set_actor_rigid_shape_properties(env_ptr, object_handle, object_shape_props)
 
             if self.aggregate_mode > 0:
                 self.gym.end_aggregate(env_ptr)
@@ -748,11 +743,8 @@ class ShadowHandRubiksCube(BaseTask):
         self.object_init_state = to_torch(self.object_init_state, device=self.device, dtype=torch.float).view(self.num_envs, 13)
         self.goal_states = self.object_init_state.clone()
         
-        #Aathira changes
         self.goal_init_state = self.goal_states.clone()
-        self.goal_init_state[:, 0:3] = goal_start_pose.p
-        self.goal_init_state[:, 3:7] = goal_start_pose.r 
-
+        
         self.hand_start_states = to_torch(self.hand_start_states, device=self.device).view(self.num_envs, 13)
 
         self.fingertip_handles = to_torch(self.fingertip_handles, dtype=torch.long, device=self.device)
@@ -767,8 +759,7 @@ class ShadowHandRubiksCube(BaseTask):
         self.bucket_indices = to_torch(self.bucket_indices, dtype=torch.long, device=self.device)
         self.ball_indices = to_torch(self.ball_indices, dtype=torch.long, device=self.device)
         self.goal_dof_states = to_torch(self.goal_dof_states, dtype=torch.long, device=self.device)
-        self.object_dof_states = to_torch(self.object_dof_states, dtype=torch.long, device=self.device)
-
+        
     def compute_reward(self, actions):
         """
         Compute the reward of all environment. The core function is compute_hand_reward(
@@ -787,12 +778,12 @@ class ShadowHandRubiksCube(BaseTask):
         """
         self.rew_buf[:], self.reset_buf[:], self.reset_goal_buf[:], self.progress_buf[:], self.successes[:], self.consecutive_successes[:] = compute_hand_reward(
             self.rew_buf, self.reset_buf, self.reset_goal_buf, self.progress_buf, self.successes, self.consecutive_successes,
-            self.max_episode_length, self.object_pos, self.object_rot, self.goal_pos, self.goal_rot, self.scissors_right_handle_pos, self.scissors_left_handle_pos, self.object_dof_pos,
+            self.max_episode_length, self.object_pos, self.object_rot, self.goal_pos, self.goal_rot, self.object_dof_pos,
             self.left_hand_pos, self.right_hand_pos, self.right_hand_ff_pos, self.right_hand_mf_pos, self.right_hand_rf_pos, self.right_hand_lf_pos, self.right_hand_th_pos, 
             self.left_hand_ff_pos, self.left_hand_mf_pos, self.left_hand_rf_pos, self.left_hand_lf_pos, self.left_hand_th_pos, 
             self.dist_reward_scale, self.rot_reward_scale, self.rot_eps, self.actions, self.action_penalty_scale,
             self.success_tolerance, self.reach_goal_bonus, self.fall_dist, self.fall_penalty,
-            self.max_consecutive_successes, self.av_factor, (self.object_type == "pen"), self.num_envs, self.object_dof_states, self.goal_dof_states
+            self.max_consecutive_successes, self.av_factor, (self.object_type == "pen"), self.num_envs, self.object_dof_state, self.goal_dof_states
         )
 
         """
@@ -833,13 +824,19 @@ class ShadowHandRubiksCube(BaseTask):
         self.object_angvel = self.root_state_tensor[self.object_indices, 10:13]
         
         #AATHIRA
-        obj_dof_states = []
-        for i in range(self.num_envs):
-            object_handle = self.object_handles.get(i)
-            env_ptr = self.key_env_ptr.get(i)
-            dof_states = self.gym.get_actor_dof_states(env_ptr, object_handle, gymapi.STATE_ALL)
-            obj_dof_states.append(dof_states)
-        self.object_dof_states = obj_dof_states
+        #obj_dof_states = []
+        self.object_dof_state = self.dof_state.view(self.num_envs, -1, 2)[:, self.num_shadow_hand_dofs*2:self.num_shadow_hand_dofs*2 + self.num_object_dofs]
+
+        #for i in range(self.num_envs):
+        #    object_handle = self.object_handles.get(i)
+        #    env_ptr = self.key_env_ptr.get(i)
+        #    dof_states = self.gym.get_actor_dof_states(env_ptr, object_handle, gymapi.STATE_ALL)
+        #    obj_dof_states.append(dof_states.copy())
+        #self.object_dof_states = obj_dof_states # convert into tensor
+
+        #Aathira : For debug lines to see the axis
+        self.cube_1_pos = self.rigid_body_states[:, 26 * 2 + 1, 0:3]
+        self.cube_1_rot = self.rigid_body_states[:, 26 * 2 + 1, 3:7]
 
         self.left_hand_pos = self.rigid_body_states[:, 3 + 26, 0:3]
         self.left_hand_rot = self.rigid_body_states[:, 3 + 26, 3:7]
@@ -931,7 +928,7 @@ class ShadowHandRubiksCube(BaseTask):
         408 - 410	object angle velocity
         411 - 417	goal pose
         418 - 421	goal rot - object rot
-        422 - 502   cube positions
+        422 - 553   cube positions
         #422 - 424	scissors right handle position
         #425 - 427	scissors left handle position
         """
@@ -990,9 +987,8 @@ class ShadowHandRubiksCube(BaseTask):
         
         #self.obs_buf[:, obj_obs_start + 13:obj_obs_start + 94] = torch.cat(cubes_positions, dim=1)
         object_dof_states_start = obj_obs_start + 13
-        num_object_dof_states = self.object_dof_states.shape[1] * self.object_dof_states.shape[2]
-        print("AATHIRA : num_object_dof_states : ", num_object_dof_states)
-        self.obs_buf[:, object_dof_states_start:object_dof_states_start + num_object_dof_states] = self.object_dof_states.reshape(self.num_envs, num_object_dof_states)
+        num_object_dof_states = self.object_dof_state.shape[1] * self.object_dof_state.shape[2]
+        self.obs_buf[:, object_dof_states_start:object_dof_states_start + num_object_dof_states] = self.object_dof_state.reshape(self.num_envs, num_object_dof_states)
 
     def reset_target_pose(self, env_ids, apply_reset=False):
         """
@@ -1010,8 +1006,11 @@ class ShadowHandRubiksCube(BaseTask):
         # Reset the goal cube using the rotate_face function.
         # Ignore reset_goal_buf not being used
         
-        self.root_state_tensor[self.goal_object_indices[env_ids], 0:3] = self.goal_init_state[0:3] #self.goal_states[env_ids, 0:3] + self.goal_displacement_tensor
-        self.root_state_tensor[self.goal_object_indices[env_ids], 3:7] = self.goal_init_state[3:7]
+        self.goal_states[env_ids, 0:3] = self.goal_init_state[env_ids, 0:3]
+        #self.goal_states[env_ids, 2] += 10.0
+
+        self.root_state_tensor[self.goal_object_indices[env_ids], 0:3] = self.goal_states[env_ids, 0:3] + self.goal_displacement_tensor #self.goal_init_state[env_ids, 0:3]
+        self.root_state_tensor[self.goal_object_indices[env_ids], 3:7] = self.goal_states[env_ids, 3:7] #self.goal_init_state[env_ids, 3:7]
         self.root_state_tensor[self.goal_object_indices[env_ids], 7:13] = torch.zeros_like(self.root_state_tensor[self.goal_object_indices[env_ids], 7:13])
 
         #dof_states = self.initialize_goal_faces(env_ids)
@@ -1129,20 +1128,11 @@ class ShadowHandRubiksCube(BaseTask):
         """
         env_ids = self.reset_buf.nonzero(as_tuple=False).squeeze(-1)
         goal_env_ids = self.reset_goal_buf.nonzero(as_tuple=False).squeeze(-1)
-        print("AATHIRA : Goal Env IDs : ", goal_env_ids)
-
-        """
-        # if only goals need reset, then call set API
-        if len(goal_env_ids) > 0 and len(env_ids) == 0:
-            self.reset_target_pose(goal_env_ids, apply_reset=True)
-        # if goals need reset in addition to other envs, call set API in reset()
-        elif len(goal_env_ids) > 0:
-            self.reset_target_pose(goal_env_ids)
-        """
 
         if len(env_ids) > 0:
             print("AATHIRA Inside pre_physics_step env_ids : ", env_ids)
-            self.reset(env_ids, goal_env_ids)
+            #Uncomment
+            #self.reset(env_ids, goal_env_ids)
 
         self.actions = actions.clone().to(self.device)
         if self.use_relative_control:
@@ -1175,12 +1165,13 @@ class ShadowHandRubiksCube(BaseTask):
             self.apply_torque[:, 1, :] = self.actions[:, 3:6] * self.dt * self.orientation_scale * 1000
             self.apply_torque[:, 1 + 26, :] = self.actions[:, 29:32] * self.dt * self.orientation_scale * 1000   
 
-            self.gym.apply_rigid_body_force_tensors(self.sim, gymtorch.unwrap_tensor(self.apply_forces), gymtorch.unwrap_tensor(self.apply_torque), gymapi.ENV_SPACE)
+            # Uncomment
+            #self.gym.apply_rigid_body_force_tensors(self.sim, gymtorch.unwrap_tensor(self.apply_forces), gymtorch.unwrap_tensor(self.apply_torque), gymapi.ENV_SPACE)
 
         self.prev_targets[:, self.actuated_dof_indices] = self.cur_targets[:, self.actuated_dof_indices]
         self.prev_targets[:, self.actuated_dof_indices + 24] = self.cur_targets[:, self.actuated_dof_indices + 24]
-
-        self.gym.set_dof_position_target_tensor(self.sim, gymtorch.unwrap_tensor(self.cur_targets))  
+        #Uncomment
+        #self.gym.set_dof_position_target_tensor(self.sim, gymtorch.unwrap_tensor(self.cur_targets))  
 
     def post_physics_step(self):
         """
@@ -1201,20 +1192,14 @@ class ShadowHandRubiksCube(BaseTask):
 
             for i in range(self.num_envs):
                 #Aathira changes
-                #print("AATHIRA : inside for loop for add_debug_lines")
                 self.add_debug_lines(self.envs[i], self.cube_1_pos[i], self.cube_1_rot[i])
-                self.add_debug_lines(self.envs[i], self.cube_2_pos[i], self.cube_2_rot[i])
-                self.add_debug_lines(self.envs[i], self.cube_3_pos[i], self.cube_3_rot[i])
-                self.add_debug_lines(self.envs[i], self.cube_4_pos[i], self.cube_4_rot[i])
-                self.add_debug_lines(self.envs[i], self.cube_5_pos[i], self.cube_5_rot[i])
-                self.add_debug_lines(self.envs[i], self.cube_6_pos[i], self.cube_6_rot[i])
-                self.add_debug_lines(self.envs[i], self.cube_7_pos[i], self.cube_7_rot[i])
+                
 
-                #self.add_debug_lines(self.envs[i], self.right_hand_ff_pos[i], self.right_hand_ff_rot[i])
-                #self.add_debug_lines(self.envs[i], self.right_hand_mf_pos[i], self.right_hand_mf_rot[i])
-                #self.add_debug_lines(self.envs[i], self.right_hand_rf_pos[i], self.right_hand_rf_rot[i])
-                #self.add_debug_lines(self.envs[i], self.right_hand_lf_pos[i], self.right_hand_lf_rot[i])
-                #self.add_debug_lines(self.envs[i], self.right_hand_th_pos[i], self.right_hand_th_rot[i])
+                self.add_debug_lines(self.envs[i], self.right_hand_ff_pos[i], self.right_hand_ff_rot[i])
+                self.add_debug_lines(self.envs[i], self.right_hand_mf_pos[i], self.right_hand_mf_rot[i])
+                self.add_debug_lines(self.envs[i], self.right_hand_rf_pos[i], self.right_hand_rf_rot[i])
+                self.add_debug_lines(self.envs[i], self.right_hand_lf_pos[i], self.right_hand_lf_rot[i])
+                self.add_debug_lines(self.envs[i], self.right_hand_th_pos[i], self.right_hand_th_rot[i])
 
                 #self.add_debug_lines(self.envs[i], self.left_hand_ff_pos[i], self.right_hand_ff_rot[i])
                 #self.add_debug_lines(self.envs[i], self.left_hand_mf_pos[i], self.right_hand_mf_rot[i])
@@ -1242,14 +1227,14 @@ class ShadowHandRubiksCube(BaseTask):
 @torch.jit.script
 def compute_hand_reward(
     rew_buf, reset_buf, reset_goal_buf, progress_buf, successes, consecutive_successes,
-    max_episode_length: float, object_pos, object_rot, target_pos, target_rot, scissors_right_handle_pos, scissors_left_handle_pos, object_dof_pos,
+    max_episode_length: float, object_pos, object_rot, target_pos, target_rot, object_dof_pos,
     left_hand_pos, right_hand_pos, right_hand_ff_pos, right_hand_mf_pos, right_hand_rf_pos, right_hand_lf_pos, right_hand_th_pos,
     left_hand_ff_pos, left_hand_mf_pos, left_hand_rf_pos, left_hand_lf_pos, left_hand_th_pos,
     dist_reward_scale: float, rot_reward_scale: float, rot_eps: float,
     actions, action_penalty_scale: float,
     success_tolerance: float, reach_goal_bonus: float, fall_dist: float,
     fall_penalty: float, max_consecutive_successes: int, av_factor: float, ignore_z_rot: bool,
-    num_envs, object_dof_states, goal_dof_states
+    num_envs: int, object_dof_states, goal_dof_states
 ):
     """
     Compute the reward of all environment.
@@ -1345,9 +1330,6 @@ def compute_hand_reward(
     left_hand_dist = torch.norm(left_hand_pos - object_pos, dim=-1)
     hand_rew = -0.5 * (right_hand_dist + left_hand_dist)
 
-    # Success criteria for reaching the goal
-    goal_reached = (dist < success_tolerance) & (rot_dist < rot_eps) # Add cubelet pos and rot
-    goal_rew = goal_reached.float() * reach_goal_bonus
 
     # Calculate DOF distance reward (distance between object DOF states and goal DOF states)
     num_object_dof_states = object_dof_states.shape[1] * object_dof_states.shape[2]
@@ -1356,6 +1338,9 @@ def compute_hand_reward(
     dof_dist = torch.norm(object_dof_states_reshaped - goal_dof_states_reshaped, dim=-1)
     dof_rew = 20 / (dof_dist + 0.1)
 
+    # Success criteria for reaching the goal
+    goal_reached = (dist < success_tolerance) & (rot_dist < rot_eps) & (dof_dist < 0.1) # Add cubelet pos and rot
+    goal_rew = goal_reached.float() * reach_goal_bonus
     # Action penalty for stabilizing actions
     #action_penalty = torch.sum(actions ** 2, dim=-1)
     #action_penalty_rew = -action_penalty_scale * action_penalty
@@ -1369,6 +1354,9 @@ def compute_hand_reward(
     rew_buf += fall_rew
 
     # Reset environment if max episode length reached or object fell
+    print(f"AATHIRA : (progress_buf >= max_episode_length): {(progress_buf >= max_episode_length)}")
+    print(f"AATHIRA : fell : {fell}")
+    #print(f"AATHIRA : goal_reached : {goal_reached}")
     resets = (progress_buf >= max_episode_length) | fell | goal_reached
     reset_buf[:] = resets.float()
 
@@ -1376,7 +1364,7 @@ def compute_hand_reward(
     #successes += goal_reached.float()
     #goal_resets = goal_reached & (successes >= max_consecutive_successes)
     #reset_goal_buf[:] = goal_resets.float()
-    
+    #reset_goal_buf = torch.zeros_like(resets)
     return rew_buf, reset_buf, reset_goal_buf, progress_buf, successes, consecutive_successes
 
 @torch.jit.script
@@ -1393,6 +1381,129 @@ def randomize_rotation_pen(rand0, rand1, max_angle, x_unit_tensor, y_unit_tensor
 
 
 """
+======================================================================================================================================================
+Index	Abbreviation	Full Form
+    0	WRJ1	Wrist Joint 1
+    1	WRJ0	Wrist Joint 0
+    2	FFJ3	Fore Finger Knuckle Joint
+    3	FFJ2	Fore Finger Proximal Joint
+    4	FFJ1	Fore Finger Middle Joint
+    5	FFJ0	Fore Finger Distal Joint
+    6	MFJ3	Middle Finger Knuckle Joint
+    7	MFJ2	Middle Finger Proximal Joint
+    8	MFJ1	Middle Finger Middle Joint
+    9	MFJ0	Middle Finger Distal Joint
+    10	RFJ3	Ring Finger Knuckle Joint
+    11	RFJ2	Ring Finger Proximal Joint
+    12	RFJ1	Ring Finger Middle Joint
+    13	RFJ0	Ring Finger Distal Joint
+    14	LFJ4	Little Finger Metacarpal Joint
+    15	LFJ3	Little Finger Knuckle Joint
+    16	LFJ2	Little Finger Proximal Joint
+    17	LFJ1	Little Finger Middle Joint
+    18	LFJ0	Little Finger Distal Joint
+    19	THJ4	Thumb Base Joint
+    20	THJ3	Thumb Proximal Joint
+    21	THJ2	Thumb Hub Joint
+    22	THJ1	Thumb Middle Joint
+    23	THJ0	Thumb Distal Joint
+
+shadow_hand_asset : 
+0 : robot0:WRJ1
+shadow_hand_asset : 
+1 : robot0:WRJ0
+shadow_hand_asset : 
+2 : robot0:FFJ3
+shadow_hand_asset : 
+3 : robot0:FFJ2
+shadow_hand_asset : 
+4 : robot0:FFJ1
+shadow_hand_asset : 
+5 : robot0:FFJ0
+shadow_hand_asset : 
+6 : robot0:MFJ3
+shadow_hand_asset : 
+7 : robot0:MFJ2
+shadow_hand_asset : 
+8 : robot0:MFJ1
+shadow_hand_asset : 
+9 : robot0:MFJ0
+shadow_hand_asset : 
+10 : robot0:RFJ3
+shadow_hand_asset : 
+11 : robot0:RFJ2
+shadow_hand_asset : 
+12 : robot0:RFJ1
+shadow_hand_asset : 
+13 : robot0:RFJ0
+shadow_hand_asset : 
+14 : robot0:LFJ4
+shadow_hand_asset : 
+15 : robot0:LFJ3
+shadow_hand_asset : 
+16 : robot0:LFJ2
+shadow_hand_asset : 
+17 : robot0:LFJ1
+shadow_hand_asset : 
+18 : robot0:LFJ0
+shadow_hand_asset : 
+19 : robot0:THJ4
+shadow_hand_asset : 
+20 : robot0:THJ3
+shadow_hand_asset : 
+21 : robot0:THJ2
+shadow_hand_asset : 
+22 : robot0:THJ1
+shadow_hand_asset : 
+23 : robot0:THJ0
+shadow_hand_another_asset : 
+0 : robot1:WRJ1
+shadow_hand_another_asset : 
+1 : robot1:WRJ0
+shadow_hand_another_asset : 
+2 : robot1:FFJ3
+shadow_hand_another_asset : 
+3 : robot1:FFJ2
+shadow_hand_another_asset : 
+4 : robot1:FFJ1
+shadow_hand_another_asset : 
+5 : robot1:FFJ0
+shadow_hand_another_asset : 
+6 : robot1:MFJ3
+shadow_hand_another_asset : 
+7 : robot1:MFJ2
+shadow_hand_another_asset : 
+8 : robot1:MFJ1
+shadow_hand_another_asset : 
+9 : robot1:MFJ0
+shadow_hand_another_asset : 
+10 : robot1:RFJ3
+shadow_hand_another_asset : 
+11 : robot1:RFJ2
+shadow_hand_another_asset : 
+12 : robot1:RFJ1
+shadow_hand_another_asset : 
+13 : robot1:RFJ0
+shadow_hand_another_asset : 
+14 : robot1:LFJ4
+shadow_hand_another_asset : 
+15 : robot1:LFJ3
+shadow_hand_another_asset : 
+16 : robot1:LFJ2
+shadow_hand_another_asset : 
+17 : robot1:LFJ1
+shadow_hand_another_asset : 
+18 : robot1:LFJ0
+shadow_hand_another_asset : 
+19 : robot1:THJ4
+shadow_hand_another_asset : 
+20 : robot1:THJ3
+shadow_hand_another_asset : 
+21 : robot1:THJ2
+shadow_hand_another_asset : 
+22 : robot1:THJ1
+shadow_hand_another_asset : 
+23 : robot1:THJ0
 ====================================================================================================================================
         self.cube_1_pos = self.rigid_body_states[:, 26 * 2 + 1, 0:3]
         self.cube_1_rot = self.rigid_body_states[:, 26 * 2 + 1, 3:7] 
