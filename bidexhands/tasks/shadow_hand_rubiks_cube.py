@@ -209,9 +209,9 @@ class ShadowHandRubiksCube(BaseTask):
 
         # create some wrapper tensors for different slices
         self.shadow_hand_default_dof_pos = torch.zeros(self.num_shadow_hand_dofs, dtype=torch.float, device=self.device)
-        # self.shadow_hand_default_dof_pos = to_torch([0.0, 0.0, -0,  -0,  -0,  -0, -0, -0,
-        #                                     -0,  -0, -0,  -0,  -0,  -0, -0, -0,
-        #                                     -0,  -0, -0,  -1.04,  1.2,  0., 0, -1.57], dtype=torch.float, device=self.device)
+        self.shadow_hand_default_dof_pos = to_torch([0, 0, 0,  0.78,  0.52,  -0, -0, 0.78,
+                                             0.52,  -0, -0,  0.78,  0.52,  -0, -0, -0,
+                                             0.78,  0.52, -0,  0,  1.57,  0, -0.40, 0], dtype=torch.float, device=self.device)
 
         self.dof_state = gymtorch.wrap_tensor(dof_state_tensor)
         self.shadow_hand_dof_state = self.dof_state.view(self.num_envs, -1, 2)[:, :self.num_shadow_hand_dofs]
@@ -486,6 +486,7 @@ class ShadowHandRubiksCube(BaseTask):
             self.shadow_hand_dof_default_pos.append(0.0)
             self.shadow_hand_dof_default_vel.append(0.0)
 
+        """
         for dof_index in range(self.num_shadow_hand_dofs): 
             shadow_hand_dof_name1 = self.gym.get_asset_dof_name(shadow_hand_asset, dof_index)
             print("shadow_hand_asset : ")
@@ -495,6 +496,7 @@ class ShadowHandRubiksCube(BaseTask):
             shadow_hand_dof_name2 = self.gym.get_asset_dof_name(shadow_hand_another_asset, dof_index)
             print("shadow_hand_another_asset : ")
             print(f"{dof_index} : {shadow_hand_dof_name2}")
+        """
 
         self.actuated_dof_indices = to_torch(self.actuated_dof_indices, dtype=torch.long, device=self.device)
         self.shadow_hand_dof_lower_limits = to_torch(self.shadow_hand_dof_lower_limits, device=self.device)
@@ -556,14 +558,14 @@ class ShadowHandRubiksCube(BaseTask):
         """
         shadow_hand_start_pose = gymapi.Transform()
         #shadow_hand_start_pose.p = gymapi.Vec3(0.55, 0.5, 0.8)
-        shadow_hand_start_pose.p = gymapi.Vec3(0.35, 0.15, 0.8)
+        shadow_hand_start_pose.p = gymapi.Vec3(0.35, 0.08, 0.8)
         # AATHIRA : Turn hand
-        shadow_hand_start_pose.r = gymapi.Quat().from_euler_zyx(3.14159, 0+1.57, 1.57)
+        shadow_hand_start_pose.r = gymapi.Quat().from_euler_zyx(3.14159, 1.57, 1.57)
 
         shadow_another_hand_start_pose = gymapi.Transform()
         #shadow_hand_start_pose.p = gymapi.Vec3(0.55, 0.5, 0.8)
-        shadow_another_hand_start_pose.p = gymapi.Vec3(0.35, -0.15, 0.8)
-        shadow_another_hand_start_pose.r = gymapi.Quat().from_euler_zyx(3.14159, 0-1.57, 1.57)
+        shadow_another_hand_start_pose.p = gymapi.Vec3(0.35, -0.08, 0.8)
+        shadow_another_hand_start_pose.r = gymapi.Quat().from_euler_zyx(3.14159, -1.57, 1.57)
 
         object_start_pose = gymapi.Transform()
         object_start_pose.p = gymapi.Vec3(0.0, 0., 0.6)
@@ -571,7 +573,7 @@ class ShadowHandRubiksCube(BaseTask):
         pose_dx, pose_dy, pose_dz = -1.0, 0.0, -0.0
        
         # Aathira changed
-        self.goal_displacement = gymapi.Vec3(-0., 0.0, 0.3)
+        self.goal_displacement = gymapi.Vec3(-0.03, 0.0, 0.2)
         self.goal_displacement_tensor = to_torch(
             [self.goal_displacement.x, self.goal_displacement.y, self.goal_displacement.z], device=self.device)
         goal_start_pose = gymapi.Transform()
@@ -1132,7 +1134,7 @@ class ShadowHandRubiksCube(BaseTask):
         if len(env_ids) > 0:
             print("AATHIRA Inside pre_physics_step env_ids : ", env_ids)
             #Uncomment
-            #self.reset(env_ids, goal_env_ids)
+            self.reset(env_ids, goal_env_ids)
 
         self.actions = actions.clone().to(self.device)
         if self.use_relative_control:
@@ -1354,8 +1356,8 @@ def compute_hand_reward(
     rew_buf += fall_rew
 
     # Reset environment if max episode length reached or object fell
-    print(f"AATHIRA : (progress_buf >= max_episode_length): {(progress_buf >= max_episode_length)}")
-    print(f"AATHIRA : fell : {fell}")
+    #print(f"AATHIRA : (progress_buf >= max_episode_length): {(progress_buf >= max_episode_length)}")
+    #print(f"AATHIRA : fell : {fell}")
     #print(f"AATHIRA : goal_reached : {goal_reached}")
     resets = (progress_buf >= max_episode_length) | fell | goal_reached
     reset_buf[:] = resets.float()

@@ -1025,7 +1025,7 @@ class ShadowHandDoorOpenInward(BaseTask):
         self.reset_goal_buf[env_ids] = 0
 
     def reset(self, env_ids, goal_env_ids):
-        """
+        '''
         Reset and randomize the environment
 
         Args:
@@ -1033,7 +1033,7 @@ class ShadowHandDoorOpenInward(BaseTask):
 
             goal_env_ids (tensor): The index of the environment that only goals need reset
 
-        """
+        '''
         # randomization can happen only at reset time, since it can reset actor positions on GPU
         if self.randomize:
             self.apply_randomizations(self.randomization_params)
@@ -1128,6 +1128,7 @@ class ShadowHandDoorOpenInward(BaseTask):
         self.reset_buf[env_ids] = 0
         self.successes[env_ids] = 0
 
+    
 
     def pre_physics_step(self, actions):
         """
