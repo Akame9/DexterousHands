@@ -357,9 +357,9 @@ class ShadowHandRubiksCube(BaseTask):
         goal_num_dofs = self.gym.get_actor_dof_count(env_ptr, goal_handle)
 
         # Define face DOFs for right, top, bottom, and left faces
-        right_face_dofs = ["pX", "pX_pY_pZ_0", "nZ_pX_pY_0", "nY_pX_pZ_0","nY_nZ_pX_0", "pX_pY_0", "nY_pX_0", "pX_pZ_0","nZ_pX_0"] # Original
+        right_face_dofs = ["pX", "nY_pX_pZ_0","nY_nZ_pX_0",  "nY_pX_0", "pX_pZ_0","nZ_pX_0","pX_pY_0", "pX_pY_pZ_0", "nZ_pX_pY_0"] #  Original
         #top_face_dofs = ["pZ", "nX_pZ_2", "pY_pZ_2","nY_pZ_2", "nX_pY_pZ_2","nX_nY_pZ_2", "pX_pZ_2", "pX_pY_pZ_2", "nY_pX_pZ_2"] # Original
-        #top_face_dofs = [ "pZ", "nX_pZ_2", "pY_pZ_2","nY_pZ_2", "nX_pY_pZ_2","nX_nY_pZ_2", "pX_pY_2", "pX_pY_pZ_2", "nZ_pX_pY_2"]  #  After right rotation - forward
+        top_face_dofs = [ "pZ", "nX_pZ_2", "pY_pZ_2","nY_pZ_2", "nX_pY_pZ_2","nX_nY_pZ_2","pX_pY_2", "pX_pY_pZ_2", "nZ_pX_pY_2" ]  #   After right rotation - forward
         #top_face_dofs = ["pZ", "nX_pZ_2", "pY_pZ_2", "nY_pZ_2", "nX_pY_pZ_2", "nX_nY_pZ_2", "pX_pY_2", "pX_pY_pZ_2", "nZ_pX_pY_2"]
         #bottom_face_dofs = ["nZ", "nZ_pX_2", "nZ_pY_2","nY_nZ_2", "nZ_pX_pY_2","nY_nZ_pX_2", "nX_nZ_pY_2", "nX_nY_nZ_2", "nX_nZ_2"] # Original
         #left_face_dofs = ["nX", "nX_pZ_0", "nX_pY_pZ_0", "nX_nY_pZ_0","nX_pY_0", "nX_nZ_pY_0", "nX_nY_0", "nX_nZ_0","nX_nY_nZ_0"] # Original
@@ -370,15 +370,16 @@ class ShadowHandRubiksCube(BaseTask):
 
         # Collect DOF indices for each face
         right_face_dof_index = get_dof_indices(right_face_dofs)
+        top_face_dof_index = get_dof_indices(top_face_dofs)
         
         # Get current DOF states and apply rotations
         dof_states = self.gym.get_actor_dof_states(env_ptr, goal_handle, gymapi.STATE_ALL)
         dof_states = self.rotate_rubiks_face(dof_states, right_face_dof_index, np.pi / 2)
         #dof_states= self.rotate_rubiks_face(dof_states, left_face_dof_index, np.pi/2)
-        #self.gym.set_actor_dof_states(env_ptr, goal_handle, dof_states, gymapi.STATE_ALL)
+        self.gym.set_actor_dof_states(env_ptr, goal_handle, dof_states, gymapi.STATE_ALL)
 
-        #dof_states = self.rotate_rubiks_face(dof_states, top_face_dof_index, np.pi/6)
-        #self.gym.set_actor_dof_states(env_ptr, goal_handle, dof_states, gymapi.STATE_ALL)
+        dof_states = self.rotate_rubiks_face(dof_states, top_face_dof_index, -np.pi/4)
+        self.gym.set_actor_dof_states(env_ptr, goal_handle, dof_states, gymapi.STATE_ALL)
         #print("AATHIRA : Dof states after top rotation : ", self.gym.get_actor_dof_states(env_ptr, goal_handle, gymapi.STATE_ALL))
             
         #dof_states= self.rotate_rubiks_face(dof_states, right_face_dof_index, np.pi/2)
@@ -387,7 +388,7 @@ class ShadowHandRubiksCube(BaseTask):
         #self.gym.set_actor_dof_states(env_ptr, goal_handle, dof_states, gymapi.STATE_ALL)
             
         # Additional rotations can be applied as needed
-        self.gym.set_actor_dof_states(env_ptr, goal_handle, dof_states, gymapi.STATE_ALL)
+        #self.gym.set_actor_dof_states(env_ptr, goal_handle, dof_states, gymapi.STATE_ALL)
         #print(f"AATHIRA : dof_states {count}:  ", dof_states)
         return dof_states.copy()
 
@@ -477,7 +478,7 @@ class ShadowHandRubiksCube(BaseTask):
         self.shadow_hand_dof_upper_limits = []
         self.shadow_hand_dof_default_pos = []
         self.shadow_hand_dof_default_vel = []
-        self.sensors = []
+        #self.sensors = []
         sensor_pose = gymapi.Transform()
 
         for i in range(self.num_shadow_hand_dofs):
@@ -485,18 +486,6 @@ class ShadowHandRubiksCube(BaseTask):
             self.shadow_hand_dof_upper_limits.append(shadow_hand_dof_props['upper'][i])
             self.shadow_hand_dof_default_pos.append(0.0)
             self.shadow_hand_dof_default_vel.append(0.0)
-
-        """
-        for dof_index in range(self.num_shadow_hand_dofs): 
-            shadow_hand_dof_name1 = self.gym.get_asset_dof_name(shadow_hand_asset, dof_index)
-            print("shadow_hand_asset : ")
-            print(f"{dof_index} : {shadow_hand_dof_name1}")
-            
-        for dof_index in range(self.num_shadow_hand_dofs): 
-            shadow_hand_dof_name2 = self.gym.get_asset_dof_name(shadow_hand_another_asset, dof_index)
-            print("shadow_hand_another_asset : ")
-            print(f"{dof_index} : {shadow_hand_dof_name2}")
-        """
 
         self.actuated_dof_indices = to_torch(self.actuated_dof_indices, dtype=torch.long, device=self.device)
         self.shadow_hand_dof_lower_limits = to_torch(self.shadow_hand_dof_lower_limits, device=self.device)
@@ -551,24 +540,17 @@ class ShadowHandRubiksCube(BaseTask):
 
         table_asset = self.gym.create_box(self.sim, table_dims.x, table_dims.y, table_dims.z, gymapi.AssetOptions())
         
-        """
-        object_start_pose.p.x = shadow_hand_start_pose.p.x + pose_dx
-        object_start_pose.p.y = shadow_hand_start_pose.p.y + pose_dy
-        object_start_pose.p.z = shadow_hand_start_pose.p.z + pose_dz
-        """
         shadow_hand_start_pose = gymapi.Transform()
-        #shadow_hand_start_pose.p = gymapi.Vec3(0.55, 0.5, 0.8)
         shadow_hand_start_pose.p = gymapi.Vec3(0.35, 0.08, 0.8)
         # AATHIRA : Turn hand
         shadow_hand_start_pose.r = gymapi.Quat().from_euler_zyx(3.14159, 1.57, 1.57)
 
         shadow_another_hand_start_pose = gymapi.Transform()
-        #shadow_hand_start_pose.p = gymapi.Vec3(0.55, 0.5, 0.8)
         shadow_another_hand_start_pose.p = gymapi.Vec3(0.35, -0.08, 0.8)
         shadow_another_hand_start_pose.r = gymapi.Quat().from_euler_zyx(3.14159, -1.57, 1.57)
 
         object_start_pose = gymapi.Transform()
-        object_start_pose.p = gymapi.Vec3(0.0, 0., 0.6)
+        object_start_pose.p = gymapi.Vec3(-0.03, 0., 0.8) 
         object_start_pose.r = gymapi.Quat().from_euler_zyx(0, 0, 1.57)
         pose_dx, pose_dy, pose_dz = -1.0, 0.0, -0.0
        
@@ -788,21 +770,7 @@ class ShadowHandRubiksCube(BaseTask):
             self.max_consecutive_successes, self.av_factor, (self.object_type == "pen"), self.num_envs, self.object_dof_state, self.goal_dof_states
         )
 
-        """
-        self.extras['successes'] = self.successes
-        self.extras['consecutive_successes'] = self.consecutive_successes
         
-        if self.print_success_stat:
-            self.total_resets = self.total_resets + self.reset_buf.sum()
-            direct_average_successes = self.total_successes + self.successes.sum()
-            self.total_successes = self.total_successes + (self.successes * self.reset_buf).sum()
-
-            # The direct average shows the overall result more quickly, but slightly undershoots long term
-            # policy performance.
-            print("Direct average consecutive successes = {:.1f}".format(direct_average_successes/(self.total_resets + self.num_envs)))
-            if self.total_resets > 0:
-                print("Post-Reset average consecutive successes = {:.1f}".format(self.total_successes/self.total_resets))
-        """
     def compute_observations(self):
         """
         Compute the observations of all environment. The core function is self.compute_full_state(True), 
@@ -1037,21 +1005,16 @@ class ShadowHandRubiksCube(BaseTask):
         """
 
         # Set target pose for the objects to their default positions
-        self.reset_target_pose(env_ids)
+        #self.reset_target_pose(env_ids)
 
         # Reset object state to initial values without randomization
-        self.root_state_tensor[self.object_indices[env_ids]] = self.object_init_state[env_ids].clone()
+        #self.root_state_tensor[self.object_indices[env_ids]] = self.object_init_state[env_ids].clone()
 
         # Reset object orientation to initial orientation
-        self.root_state_tensor[self.object_indices[env_ids], 3:7] = self.object_init_state[env_ids, 3:7]
+        #self.root_state_tensor[self.object_indices[env_ids], 3:7] = self.object_init_state[env_ids, 3:7]
 
         # Set object velocities to zero
-        self.root_state_tensor[self.object_indices[env_ids], 7:13] = torch.zeros_like(self.root_state_tensor[self.object_indices[env_ids], 7:13])
-
-        # Handle goal indices for object resets
-        object_indices = torch.unique(torch.cat([self.object_indices[env_ids],
-                                                self.goal_object_indices[env_ids],
-                                                self.goal_object_indices[goal_env_ids]]).to(torch.int32))
+        #self.root_state_tensor[self.object_indices[env_ids], 7:13] = torch.zeros_like(self.root_state_tensor[self.object_indices[env_ids], 7:13])
 
         # Reset shadow hand DOF positions to default without noise
         pos = self.shadow_hand_default_dof_pos
@@ -1063,30 +1026,38 @@ class ShadowHandRubiksCube(BaseTask):
         self.shadow_hand_dof_vel[env_ids, :] = vel
         self.shadow_hand_another_dof_vel[env_ids, :] = vel
 
+        self.object_dof_pos[env_ids, :] = to_torch([0], device=self.device)
+        self.object_dof_vel[env_ids, :] = to_torch([0], device=self.device)
+
+
         # Initialize targets to the default positions
         self.prev_targets[env_ids, :self.num_shadow_hand_dofs] = pos
         self.cur_targets[env_ids, :self.num_shadow_hand_dofs] = pos
         self.prev_targets[env_ids, self.num_shadow_hand_dofs:self.num_shadow_hand_dofs*2] = pos
         self.cur_targets[env_ids, self.num_shadow_hand_dofs:self.num_shadow_hand_dofs*2] = pos
 
+        num_object_dof_states = self.object_dof_state.shape[1] * self.object_dof_state.shape[2]
+        self.prev_targets[env_ids, self.num_shadow_hand_dofs*2:self.num_shadow_hand_dofs*2 + num_object_dof_states] = to_torch([0], device=self.device)
+        self.cur_targets[env_ids, self.num_shadow_hand_dofs*2:self.num_shadow_hand_dofs*2 + num_object_dof_states] = to_torch([0], device=self.device)
+
         # Set indexed tensors in the simulator
         hand_indices = self.hand_indices[env_ids].to(torch.int32)
         another_hand_indices = self.another_hand_indices[env_ids].to(torch.int32)
         all_hand_indices = torch.unique(torch.cat([hand_indices, another_hand_indices]).to(torch.int32))
 
+       
         # Set DOF position targets for hands
         self.gym.set_dof_position_target_tensor_indexed(
-            self.sim,
+           self.sim,
             gymtorch.unwrap_tensor(self.prev_targets),
             gymtorch.unwrap_tensor(all_hand_indices),
             len(all_hand_indices)
         )
 
         all_hand_and_object_indices = torch.unique(torch.cat([all_hand_indices,self.object_indices[env_ids]]).to(torch.int32))
-        print("Lenght of self.dof_states : ", len(self.dof_state))
-        print("Length of all_hand_indices : ", len(all_hand_and_object_indices))
+        #print("Lenght of self.dof_states : ", len(self.dof_state))
+        #print("Length of all_hand_indices : ", len(all_hand_and_object_indices))
         
-    
         # Set DOF states and actor root states for hands and objects
         # For goal we are already setting in the initialization function called inside reset_target_pose()
         self.gym.set_dof_state_tensor_indexed(
@@ -1096,8 +1067,16 @@ class ShadowHandRubiksCube(BaseTask):
             len(all_hand_and_object_indices)
         )
 
-        all_indices = torch.unique(torch.cat([all_hand_indices, object_indices]).to(torch.int32))
-        print("Length of all_indices : ", len(all_indices))
+        all_indices = torch.unique(torch.cat([all_hand_indices,
+                                              self.object_indices[env_ids],
+                                              self.table_indices[env_ids]]).to(torch.int32))
+        #print("Length of all_indices : ", len(all_indices))
+ 
+        self.hand_positions[all_indices.to(torch.long), :] = self.saved_root_tensor[all_indices.to(torch.long), 0:3]
+        self.hand_orientations[all_indices.to(torch.long), :] = self.saved_root_tensor[all_indices.to(torch.long), 3:7]
+        self.hand_linvels[all_indices.to(torch.long), :] = self.saved_root_tensor[all_indices.to(torch.long), 7:10]
+        self.hand_angvels[all_indices.to(torch.long), :] = self.saved_root_tensor[all_indices.to(torch.long), 10:13] 
+
         self.gym.set_actor_root_state_tensor_indexed(
             self.sim,
             gymtorch.unwrap_tensor(self.root_state_tensor),
@@ -1132,7 +1111,7 @@ class ShadowHandRubiksCube(BaseTask):
         goal_env_ids = self.reset_goal_buf.nonzero(as_tuple=False).squeeze(-1)
 
         if len(env_ids) > 0:
-            print("AATHIRA Inside pre_physics_step env_ids : ", env_ids)
+            #print("AATHIRA Inside pre_physics_step env_ids : ", env_ids)
             #Uncomment
             self.reset(env_ids, goal_env_ids)
 
@@ -1159,21 +1138,19 @@ class ShadowHandRubiksCube(BaseTask):
             
             self.cur_targets[:, self.actuated_dof_indices + 24] = tensor_clamp(self.cur_targets[:, self.actuated_dof_indices + 24],
                                                                           self.shadow_hand_dof_lower_limits[self.actuated_dof_indices], self.shadow_hand_dof_upper_limits[self.actuated_dof_indices])
-            # self.cur_targets[:, 49] = scale(self.actions[:, 0],
-            #                                 self.object_dof_lower_limits[0], self.object_dof_upper_limits[0])
-
+           
             self.apply_forces[:, 1, :] = actions[:, 0:3] * self.dt * self.transition_scale * 100000
             self.apply_forces[:, 1 + 26, :] = actions[:, 26:29] * self.dt * self.transition_scale * 100000
             self.apply_torque[:, 1, :] = self.actions[:, 3:6] * self.dt * self.orientation_scale * 1000
             self.apply_torque[:, 1 + 26, :] = self.actions[:, 29:32] * self.dt * self.orientation_scale * 1000   
 
             # Uncomment
-            #self.gym.apply_rigid_body_force_tensors(self.sim, gymtorch.unwrap_tensor(self.apply_forces), gymtorch.unwrap_tensor(self.apply_torque), gymapi.ENV_SPACE)
+            self.gym.apply_rigid_body_force_tensors(self.sim, gymtorch.unwrap_tensor(self.apply_forces), gymtorch.unwrap_tensor(self.apply_torque), gymapi.ENV_SPACE)
 
         self.prev_targets[:, self.actuated_dof_indices] = self.cur_targets[:, self.actuated_dof_indices]
         self.prev_targets[:, self.actuated_dof_indices + 24] = self.cur_targets[:, self.actuated_dof_indices + 24]
         #Uncomment
-        #self.gym.set_dof_position_target_tensor(self.sim, gymtorch.unwrap_tensor(self.cur_targets))  
+        self.gym.set_dof_position_target_tensor(self.sim, gymtorch.unwrap_tensor(self.cur_targets))  
 
     def post_physics_step(self):
         """
@@ -1221,6 +1198,8 @@ class ShadowHandRubiksCube(BaseTask):
         self.gym.add_lines(self.viewer, env, 1, [p0[0], p0[1], p0[2], posy[0], posy[1], posy[2]], [0.1, 0.85, 0.1])
         self.gym.add_lines(self.viewer, env, 1, [p0[0], p0[1], p0[2], posz[0], posz[1], posz[2]], [0.1, 0.1, 0.85])
      
+    
+    
 #####################################################################
 ###=========================jit functions=========================###
 #####################################################################
@@ -1320,53 +1299,56 @@ def compute_hand_reward(
     """
 
     # Calculate distance reward (distance between object and target)
-    dist = torch.norm(object_pos - target_pos, dim=-1)
+    dist = torch.norm(object_pos[..., :2] - target_pos[..., :2], dim=-1) #torch.norm(object_pos - target_pos, dim=-1)
+    #print("AATHIRA : dist : ", dist)
     dist_rew = dist_reward_scale / (dist + 0.1)
-    
+    #print("AATHIRA : dist_rew : ", dist_rew)
     # Calculate rotation reward (orientation difference between object and target)
-    rot_dist = torch.norm(object_rot - target_rot, dim=-1)
+    rot_dist = torch.norm(object_rot - target_rot, dim=-1) # How is rotation distance calculated?
+    #print("AATHIRA : rot_dist : ", rot_dist)
     rot_rew = rot_reward_scale / (rot_dist + rot_eps)
+    #print("AATHIRA : rot_rew : ", rot_rew)
 
     # Reward based on hand proximity to the cube object
     right_hand_dist = torch.norm(right_hand_pos - object_pos, dim=-1)
+    #print("AATHIRA : right_hand_dist : ", right_hand_dist)
     left_hand_dist = torch.norm(left_hand_pos - object_pos, dim=-1)
+    #print("AATHIRA : left_hand_dist : ", left_hand_dist)
     hand_rew = -0.5 * (right_hand_dist + left_hand_dist)
-
+    #print("AATHIRA : hand_rew : ", hand_rew)
 
     # Calculate DOF distance reward (distance between object DOF states and goal DOF states)
     num_object_dof_states = object_dof_states.shape[1] * object_dof_states.shape[2]
     object_dof_states_reshaped = object_dof_states.reshape(num_envs, num_object_dof_states)
     goal_dof_states_reshaped = goal_dof_states.reshape(num_envs, num_object_dof_states)
     dof_dist = torch.norm(object_dof_states_reshaped - goal_dof_states_reshaped, dim=-1)
+    #print("AATHIRA : dof_dist : ", dof_dist)
     dof_rew = 20 / (dof_dist + 0.1)
+    #print("AATHIRA : dof_rew : ", dof_rew)
 
     # Success criteria for reaching the goal
     goal_reached = (dist < success_tolerance) & (rot_dist < rot_eps) & (dof_dist < 0.1) # Add cubelet pos and rot
     goal_rew = goal_reached.float() * reach_goal_bonus
+    #print("AATHIRA : goal_rew : ", goal_rew)
     # Action penalty for stabilizing actions
     #action_penalty = torch.sum(actions ** 2, dim=-1)
     #action_penalty_rew = -action_penalty_scale * action_penalty
 
     # Apply all components to compute the final reward
-    rew_buf[:] = dist_rew + rot_rew + goal_rew + hand_rew + dof_rew #+ action_penalty_rew
-
+    rew_buf[:] = dist_rew + rot_rew + goal_rew + hand_rew + dof_rew #theoritically the highest posibble reward = 850
+    
     # Check if object fell out of reach and apply fall penalty
     fell = (right_hand_dist > fall_dist) | (left_hand_dist > fall_dist)
     fall_rew = fell.float() * fall_penalty
+    #print("AATHIRA : fall_rew : ", fall_rew)
     rew_buf += fall_rew
+    #print("AATHIRA : rew_buf : ", rew_buf)
 
     # Reset environment if max episode length reached or object fell
-    #print(f"AATHIRA : (progress_buf >= max_episode_length): {(progress_buf >= max_episode_length)}")
-    #print(f"AATHIRA : fell : {fell}")
-    #print(f"AATHIRA : goal_reached : {goal_reached}")
     resets = (progress_buf >= max_episode_length) | fell | goal_reached
     reset_buf[:] = resets.float()
 
-    # Track successes and apply resets for goal-reaching environments
-    #successes += goal_reached.float()
-    #goal_resets = goal_reached & (successes >= max_consecutive_successes)
-    #reset_goal_buf[:] = goal_resets.float()
-    #reset_goal_buf = torch.zeros_like(resets)
+    
     return rew_buf, reset_buf, reset_goal_buf, progress_buf, successes, consecutive_successes
 
 @torch.jit.script
@@ -1383,6 +1365,28 @@ def randomize_rotation_pen(rand0, rand1, max_angle, x_unit_tensor, y_unit_tensor
 
 
 """
+
+def set_object_rotation(self, sim, root_state_tensor, goal_indices):
+        
+        Set the new rotation for the object in Isaac Gym.
+
+        Args:
+            sim (gymapi.Sim): The Isaac Gym simulation instance.
+            root_state_tensor (torch.Tensor): The tensor holding the root state of all actors.
+            object_indices (torch.Tensor): The indices of the object(s) to update.
+            new_rot (torch.Tensor): The new rotation quaternion [w, x, y, z].
+
+        Returns:
+            None
+        
+        # Ensure new_rot is normalized to represent a valid quaternion
+        #new_rot = new_rot / torch.norm(new_rot)
+
+        # Update the rotation in the root_state_tensor
+        root_state_tensor[goal_indices, 3:7] = root_state_tensor[self.object_indices, 3:7]
+
+        # Apply the updated root_state_tensor to the simulation
+        self.gym.set_actor_root_state_tensor(sim, gymtorch.unwrap_tensor(root_state_tensor))
 ======================================================================================================================================================
 Index	Abbreviation	Full Form
     0	WRJ1	Wrist Joint 1

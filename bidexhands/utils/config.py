@@ -178,6 +178,7 @@ def load_cfg(args, use_rlg_config=False):
     return cfg, cfg_train, logdir
 
 
+# AATHIRA : Simulation time-step set here
 def parse_sim_params(args, cfg, cfg_train):
     # initialize sim
     sim_params = gymapi.SimParams()

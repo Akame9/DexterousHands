@@ -27,12 +27,12 @@ env:
   distRewardScale: 20  # Aathira : check this value increase or decrease?
   transition_scale: 0.5
   orientation_scale: 0.1
-  rotRewardScale: 1.0  # Aathira : check this value, might want to give higher value if cube rotation is considered.
+  rotRewardScale: 20 #1.0  # Aathira : check this value, might want to give higher value if cube rotation is considered.
   rotEps: 0.1 # Aathira : reduce this value
   actionPenaltyScale: -0.0002
   reachGoalBonus: 250
-  fallDistance: 0.4 # Aathira : check the cube height
-  fallPenalty: 0.0 # Aathira : give a non-zero value
+  fallDistance: 0.15 #0.4 # Aathira : check the cube height
+  fallPenalty: -0.5 # Aathira : give a non-zero value
 
   objectType: "pot" # can be block, egg or pen
   observationType: "full_state" # full_state or point_cloud

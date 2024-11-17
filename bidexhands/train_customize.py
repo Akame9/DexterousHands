@@ -9,7 +9,7 @@ import torch
 # If you want even more detailed logs, set it to TRACE
 #carb.settings.set("/log/level", "trace")
 
-env_name =  'ShadowHandRubiksCube' #'ShadowHandDoorOpenInward' # # # #'ShadowHandOver' #'ShadowHandScissors' #  #'ShadowHandOver' #'ShadowHandDoorOpenInward' 
+env_name =   'ShadowHandRubiksCube' #'ShadowHandBottleCap' #'ShadowHandDoorOpenInward' # # # #'ShadowHandOver' #'ShadowHandScissors' #  #'ShadowHandOver' #'ShadowHandDoorOpenInward' 
 algo = "ppo"
 env = bi.make(env_name, algo)
 
