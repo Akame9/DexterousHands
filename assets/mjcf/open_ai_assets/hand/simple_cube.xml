@@ -1,0 +1,225 @@
+<mujoco model="simple_cube">
+    <compiler texturedir="../textures"/> <!-- angle="radian" -->
+    
+
+  <size memory="600K"/>
+
+  <visual>
+    <global azimuth="180" elevation="-20"/>
+    <headlight ambient="0.3 0.3 0.3" diffuse="0.6 0.6 0.6" specular="0 0 0"/>
+  </visual>
+
+  <statistic meansize="0.0087" extent="0.1"/>
+    
+    <default>
+        <geom mass="0.00253704"/>
+        <motor ctrlrange="-0.05 0.05"/>
+        <default class="cubelet">
+        <joint type="ball" armature="0.0001" damping="0.0005" frictionloss="0.001"/>
+        <geom type="mesh" condim="1" mesh="cubelet" euler="0 0 90"/>
+        <!--<geom type="box" size="0.01 0.01 0.01" euler="0 0 90"/>-->
+        </default>
+        <default class="core">
+        <geom type="sphere" contype="0" conaffinity="0" group="4" size="0.01"/>
+        </default>
+    </default>
+
+    <asset>
+        <!-- <material name="red_cube" rgba="1 0 0 1"/>-->
+        
+        <texture type="skybox" builtin="gradient" width="512" height="512"/>
+        <texture rgb1="0 0 0" gridsize="3 4" gridlayout=".....F......" name="white"  file="white.png"/>
+        <texture rgb1="0 0 0" gridsize="3 4" gridlayout=".....B......" name="yellow" file="yellow.png"/>
+        <texture rgb1="0 0 0" gridsize="3 4" gridlayout=".....D......" name="red"    file="red.png"/>
+        <texture rgb1="0 0 0" gridsize="3 4" gridlayout=".....U......" name="orange" file="orange.png"/>
+        <texture rgb1="0 0 0" gridsize="3 4" gridlayout=".....R......" name="blue"   file="blue.png"/>
+        <texture rgb1="0 0 0" gridsize="3 4" gridlayout=".....L......" name="green"  file="green.png"/>
+        <texture rgb1="0 0 0" gridsize="3 4" gridlayout=".....DF....." name="red_white"  file="red_white.png"/>
+        <texture rgb1="0 0 0" gridsize="3 4" gridlayout=".....UF....." name="orange_white"  file="orange_white.png"/>
+        <texture rgb1="0 0 0" gridsize="3 4" gridlayout=".....RF....." name="blue_white"  file="blue_white.png"/>
+        <texture rgb1="0 0 0" gridsize="3 4" gridlayout=".....LF....." name="green_white"  file="green_white.png"/>
+        <texture rgb1="0 0 0" gridsize="3 4" gridlayout=".....DB....." name="red_yellow"  file="red_yellow.png"/>
+        <texture rgb1="0 0 0" gridsize="3 4" gridlayout=".....UB....." name="orange_yellow"  file="orange_yellow.png"/>
+        <texture rgb1="0 0 0" gridsize="3 4" gridlayout=".....RB....." name="blue_yellow"  file="blue_yellow.png"/>
+        <texture rgb1="0 0 0" gridsize="3 4" gridlayout=".....LB....." name="green_yellow"  file="green_yellow.png"/>
+        <texture rgb1="0 0 0" gridsize="3 4" gridlayout=".....UD....." name="orange_red"  file="orange_red.png"/>
+        <texture rgb1="0 0 0" gridsize="3 4" gridlayout=".....RD....." name="blue_red"  file="blue_red.png"/>
+        <texture rgb1="0 0 0" gridsize="3 4" gridlayout=".....LD....." name="green_red"  file="green_red.png"/>
+        <texture rgb1="0 0 0" gridsize="3 4" gridlayout=".....RU....." name="blue_orange"  file="blue_orange.png"/>
+        <texture rgb1="0 0 0" gridsize="3 4" gridlayout=".....LU....." name="green_orange"  file="green_orange.png"/>
+        <texture rgb1="0 0 0" gridsize="3 4" gridlayout=".....RDF...." name="blue_red_white"  file="blue_red_white.png"/>
+        <texture rgb1="0 0 0" gridsize="3 4" gridlayout=".....LDF...." name="green_red_white"  file="green_red_white.png"/>
+        <texture rgb1="0 0 0" gridsize="3 4" gridlayout=".....RUF...." name="blue_orange_white"  file="blue_orange_white.png"/>
+        <texture rgb1="0 0 0" gridsize="3 4" gridlayout=".....LUF...." name="green_orange_white"  file="green_orange_white.png"/>
+        <texture rgb1="0 0 0" gridsize="3 4" gridlayout=".....RDB...." name="blue_red_yellow"  file="blue_red_yellow.png"/>
+        <texture rgb1="0 0 0" gridsize="3 4" gridlayout=".....LDB...." name="green_red_yellow"  file="green_red_yellow.png"/>
+        <texture rgb1="0 0 0" gridsize="3 4" gridlayout=".....RUB...." name="blue_orange_yellow"  file="blue_orange_yellow.png"/>
+        <texture rgb1="0 0 0" gridsize="3 4" gridlayout=".....LUB...." name="green_orange_yellow"  file="green_orange_yellow.png"/>
+        <material name="white" texture="white"/>
+        <material name="yellow" texture="yellow"/>
+        <material name="red" texture="red"/>
+        <material name="orange" texture="orange"/>
+        <material name="blue" texture="blue"/>
+        <material name="green" texture="green"/>
+        <material name="red_white" texture="red_white"/>
+        <material name="orange_white" texture="orange_white"/>
+        <material name="blue_white" texture="blue_white"/>
+        <material name="green_white" texture="green_white"/>
+        <material name="red_yellow" texture="red_yellow"/>
+        <material name="orange_yellow" texture="orange_yellow"/>
+        <material name="blue_yellow" texture="blue_yellow"/>
+        <material name="green_yellow" texture="green_yellow"/>
+        <material name="orange_red" texture="orange_red"/>
+        <material name="blue_red" texture="blue_red"/>
+        <material name="green_red" texture="green_red"/>
+        <material name="blue_orange" texture="blue_orange"/>
+        <material name="green_orange" texture="green_orange"/>
+        <material name="blue_red_white" texture="blue_red_white"/>
+        <material name="green_red_white" texture="green_red_white"/>
+        <material name="blue_orange_white" texture="blue_orange_white"/>
+        <material name="green_orange_white" texture="green_orange_white"/>
+        <material name="blue_red_yellow" texture="blue_red_yellow"/>
+        <material name="green_red_yellow" texture="green_red_yellow"/>
+        <material name="blue_orange_yellow" texture="blue_orange_yellow"/>
+        <material name="green_orange_yellow" texture="green_orange_yellow"/>
+        
+        <mesh name="cubelet" file="cubelet.obj" scale="1e-3 1e-3 1e-3"
+              />
+        
+        <!-- <mesh name="cubelet" file="color_cubelet.obj" scale="1e-3 1e-3 1e-3"
+              />-->
+    </asset>
+    
+    <worldbody>
+        <!--<body name="cube" pos="0 0 0.1">
+            <geom name="cube_geom" type="box" size="0.05 0.05 0.05" material="red"/>
+        </body>-->
+        <!-- <body name="cube1et" pos="0 0 0.1">
+            <geom type="mesh" mesh="cubelet" /> 
+        </body>-->
+        
+        <body name="core" childclass="cubelet" pos="0.4 0 0.03">
+        <geom class="core"/>
+            <body name="pX">
+                <joint name="pX" type="hinge" axis="1 0 0"/>
+                <geom material="red" pos="0.019 0 0"/>
+            </body>
+            <body name="nX">
+                <joint name="nX" type="hinge" axis="-1 0 0"/>
+                <geom material="orange" pos="-0.019 0 0"/>
+            </body>
+            <body name="pY">
+                <joint name="pY" type="hinge" axis="0 1 0"/>
+                <geom material="blue" pos="0 0.019 0"/>
+            </body>
+            <body name="nY">
+                <joint name="nY" type="hinge" axis="0 -1 0"/>
+                <geom material="green" pos="0 -0.019 0"/>
+            </body>
+            <body name="pZ">
+                <joint name="pZ" type="hinge" axis="0 0 1"/>
+                <geom material="white" pos="0 0 0.019"/>
+            </body>
+            <body name="nZ">
+                <joint name="nZ" type="hinge" axis="0 0 -1"/>
+                <geom material="yellow" pos="0 0 -0.019"/>
+            </body>
+            <body name="pX_pY">
+                <joint name="pX_pY"/>
+                <geom material="blue_red" pos="0.019 0.019 0"/>
+            </body>
+            <body name="nY_pX">
+                <joint name="nY_pX"/>
+                <geom material="green_red" pos="0.019 -0.019 0"/>
+            </body>
+            <body name="pX_pZ">
+                <joint name="pX_pZ"/>
+                <geom material="red_white" pos="0.019 0 0.019"/>
+            </body>
+            <body name="nZ_pX">
+                <joint name="nZ_pX"/>
+                <geom material="red_yellow" pos="0.019 0 -0.019"/>
+            </body>
+            <body name="nX_pY">
+                <joint name="nX_pY"/>
+                <geom material="blue_orange" pos="-0.019 0.019 0"/>
+            </body>
+            <body name="nX_nY">
+                <joint name="nX_nY"/>
+                <geom material="green_orange" pos="-0.019 -0.019 0"/>
+            </body>
+            <body name="nX_pZ">
+                <joint name="nX_pZ"/>
+                <geom material="orange_white" pos="-0.019 0 0.019"/>
+            </body>
+            <body name="nX_nZ">
+                <joint name="nX_nZ"/>
+                <geom material="orange_yellow" pos="-0.019 0 -0.019"/>
+            </body>
+            <body name="pY_pZ">
+                <joint name="pY_pZ"/>
+                <geom material="blue_white" pos="0 0.019 0.019"/>
+            </body>
+            <body name="nZ_pY">
+                <joint name="nZ_pY"/>
+                <geom material="blue_yellow" pos="0 0.019 -0.019"/>
+            </body>
+            <body name="nY_pZ">
+                <joint name="nY_pZ"/>
+                <geom material="green_white" pos="0 -0.019 0.019"/>
+            </body>
+            <body name="nY_nZ">
+                <joint name="nY_nZ"/>
+                <geom material="green_yellow" pos="0 -0.019 -0.019"/>
+            </body>
+            <body name="pX_pY_pZ">
+                <joint name="pX_pY_pZ"/>
+                <geom material="blue_red_white" pos="0.019 0.019 0.019"/>
+            </body>
+            <body name="nZ_pX_pY">
+                <joint name="nZ_pX_pY"/>
+                <geom material="blue_red_yellow" pos="0.019 0.019 -0.019"/>
+            </body>
+            <body name="nY_pX_pZ">
+                <joint name="nY_pX_pZ"/>
+                <geom material="green_red_white" pos="0.019 -0.019 0.019"/>
+            </body>
+            <body name="nY_nZ_pX">
+                <joint name="nY_nZ_pX"/>
+                <geom material="green_red_yellow" pos="0.019 -0.019 -0.019"/>
+            </body>
+            <body name="nX_pY_pZ">
+                <joint name="nX_pY_pZ"/>
+                <geom material="blue_orange_white" pos="-0.019 0.019 0.019"/>
+            </body>
+            <body name="nX_nZ_pY">
+                <joint name="nX_nZ_pY"/>
+                <geom material="blue_orange_yellow" pos="-0.019 0.019 -0.019"/>
+            </body>
+            <body name="nX_nY_pZ">
+                <joint name="nX_nY_pZ"/>
+                <geom material="green_orange_white" pos="-0.019 -0.019 0.019"/>
+            </body>
+            <body name="nX_nY_nZ">
+                <joint name="nX_nY_nZ"/>
+                <geom material="green_orange_yellow" pos="-0.019 -0.019 -0.019"/>
+            </body>
+
+        </body>
+        
+        
+    </worldbody>
+    
+    <actuator>
+        <motor name="red" joint="pX"/>
+        <motor name="orange" joint="nX"/>
+        <motor name="blue" joint="pY"/>
+        <motor name="green" joint="nY"/>
+        <motor name="white" joint="pZ"/>
+        <motor name="yellow" joint="nZ"/>
+    </actuator>
+    
+    <option timestep="0.002"/>
+</mujoco>
+
+
