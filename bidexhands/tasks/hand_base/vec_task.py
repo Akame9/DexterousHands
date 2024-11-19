@@ -127,8 +127,9 @@ class VecTaskPython(VecTask):
         actions_tensor = torch.clamp(actions, -self.clip_actions, self.clip_actions)
 
         self.task.step(actions_tensor)
-
-        return torch.clamp(self.task.obs_buf, -self.clip_obs, self.clip_obs).to(self.rl_device), self.task.rew_buf.to(self.rl_device), self.task.reset_buf.to(self.rl_device), self.task.extras
+        
+        #Debugging purposes
+        return torch.clamp(self.task.obs_buf, -self.clip_obs, self.clip_obs).to(self.rl_device), self.task.rew_buf.to(self.rl_device), self.task.reset_buf.to(self.rl_device), self.task.extras, self.task.dist_rew.to(self.rl_device), self.task.rot_rew.to(self.rl_device), self.task.goal_rew.to(self.rl_device), self.task.hand_rew.to(self.rl_device), self.task.dof_rew.to(self.rl_device)
 
     def reset(self):
         actions = 0.01 * (1 - 2 * torch.rand([self.task.num_envs, self.task.num_actions], dtype=torch.float32, device=self.rl_device))

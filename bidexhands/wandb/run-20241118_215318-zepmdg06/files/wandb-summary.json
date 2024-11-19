@@ -1,0 +1,1 @@
+{"hand_rew":-0.10050880908966064,"_timestamp":1.7319861510575583e+09,"mean_surrogate_loss":-0.0712379342483473,"_wandb":{"runtime":1353},"mean_value_loss":642850.5765625,"_step":1135,"_runtime":1353.361170982,"dist_rew":150.76087951660156,"dof_rew":4.3580169677734375,"reward_mean_each_iter":185.92124938964844,"goal_rew":0,"rot_rew":30.912233352661133}

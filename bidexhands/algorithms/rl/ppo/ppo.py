@@ -7,7 +7,7 @@ from gym.spaces import Space
 import numpy as np
 import statistics
 from collections import deque
-
+import wandb
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -28,7 +28,8 @@ class PPO:
                  is_testing=False,
                  print_log=True,
                  apply_reset=False,
-                 asymmetric=False
+                 asymmetric=False,
+                 use_wandb=False
                  ):
 
         if not isinstance(vec_env.observation_space, Space):
@@ -37,6 +38,7 @@ class PPO:
             raise TypeError("vec_env.state_space must be a gym Space")
         if not isinstance(vec_env.action_space, Space):
             raise TypeError("vec_env.action_space must be a gym Space")
+        self.use_wandb = use_wandb
         self.observation_space = vec_env.observation_space
         self.action_space = vec_env.action_space
         self.state_space = vec_env.state_space
@@ -118,11 +120,16 @@ class PPO:
 
             reward_sum = []
             episode_length = []
-
+            
             for it in range(self.current_learning_iteration, num_learning_iterations):
                 start = time.time()
                 ep_infos = []
-
+                reward_mean = []
+                dist_rew_mean = []
+                rot_rew_mean = []
+                goal_rew_mean = []
+                hand_rew_mean = []
+                dof_rew_mean = []
                 # Rollout
                 for _ in range(self.num_transitions_per_env):
                     if self.apply_reset:
@@ -131,7 +138,15 @@ class PPO:
                     # Compute the action
                     actions, actions_log_prob, values, mu, sigma = self.actor_critic.act(current_obs, current_states)
                     # Step the vec_environment
-                    next_obs, rews, dones, infos = self.vec_env.step(actions)
+                    next_obs, rews, dones, infos, dist_rew, rot_rew, goal_rew, hand_rew, dof_rew = self.vec_env.step(actions)
+                        
+                    reward_mean.append(torch.mean(rews))
+                    dist_rew_mean.append(torch.mean(dist_rew))
+                    rot_rew_mean.append(torch.mean(rot_rew))
+                    goal_rew_mean.append(torch.mean(goal_rew))
+                    hand_rew_mean.append(torch.mean(hand_rew))
+                    dof_rew_mean.append(torch.mean(dof_rew))
+                    
                     next_states = self.vec_env.get_state()
                     # Record the transition
                     self.storage.add_transitions(current_obs, current_states, actions, rews, dones, values, actions_log_prob, mu, sigma)
@@ -174,8 +189,19 @@ class PPO:
                 if it % log_interval == 0:
                     self.save(os.path.join(self.log_dir, 'model_{}.pt'.format(it)))
                 ep_infos.clear()
-            self.save(os.path.join(self.log_dir, 'model_{}.pt'.format(num_learning_iterations)))
+                if self.use_wandb==True:
+                    wandb.log({"reward_mean_each_iter": torch.mean(torch.tensor(reward_mean))}, step=it)
+                    wandb.log({"mean_value_loss": mean_value_loss, "mean_surrogate_loss": mean_surrogate_loss}, step=it)
+                    # Debugging purposes : 
+                    wandb.log({"dist_rew": torch.mean(torch.tensor(dist_rew_mean))}, step=it)
+                    wandb.log({"rot_rew": torch.mean(torch.tensor(rot_rew_mean))}, step=it)
+                    wandb.log({"goal_rew": torch.mean(torch.tensor(goal_rew_mean))}, step=it)
+                    wandb.log({"hand_rew": torch.mean(torch.tensor(hand_rew_mean))}, step=it)
+                    wandb.log({"dof_rew": torch.mean(torch.tensor(dof_rew_mean))}, step=it)
+                    
 
+            self.save(os.path.join(self.log_dir, 'model_{}.pt'.format(num_learning_iterations)))
+            
     def log(self, locs, width=80, pad=35):
         self.tot_timesteps += self.num_transitions_per_env * self.vec_env.num_envs
         self.tot_time += locs['collection_time'] + locs['learn_time']

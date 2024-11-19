@@ -1,0 +1,54 @@
+{
+  "os": "Linux-5.15.0-121-generic-x86_64-with-glibc2.29",
+  "python": "3.8.10",
+  "startedAt": "2024-11-19T01:33:12.249931Z",
+  "args": [
+    "--task=ShadowHandRubiksCube",
+    "--algo=ppo",
+    "--use_wandb=True"
+  ],
+  "program": "train.py",
+  "codePath": "bidexhands/train.py",
+  "git": {
+    "remote": "https://github.com/Akame9/DexterousHands.git",
+    "commit": "570deacc679f6c7888fdd585f74b9c643fd9d3f2"
+  },
+  "email": "pillai.aat@northeastern.edu",
+  "root": "/home/aathira/Shadow_hands/DexterousHands/bidexhands",
+  "host": "kevin-labpc",
+  "username": "aathira",
+  "executable": "/home/aathira/isaac_gym_env/bin/python",
+  "codePathLocal": "train.py",
+  "cpu_count": 6,
+  "cpu_count_logical": 12,
+  "gpu": "NVIDIA GeForce RTX 2070",
+  "gpu_count": 2,
+  "disk": {
+    "/": {
+      "total": "982820896768",
+      "used": "366215045120"
+    }
+  },
+  "memory": {
+    "total": "33494827008"
+  },
+  "cpu": {
+    "count": 6,
+    "countLogical": 12
+  },
+  "gpu_nvidia": [
+    {
+      "name": "NVIDIA GeForce RTX 2070",
+      "memoryTotal": "8589934592",
+      "cudaCores": 2304,
+      "architecture": "Turing"
+    },
+    {
+      "name": "NVIDIA GeForce RTX 2070",
+      "memoryTotal": "8589934592",
+      "cudaCores": 2304,
+      "architecture": "Turing"
+    }
+  ],
+  "cudaVersion": "12.4"
+}

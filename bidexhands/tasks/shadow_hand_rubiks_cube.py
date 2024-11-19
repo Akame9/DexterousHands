@@ -18,6 +18,7 @@ from bidexhands.utils.torch_jit_utils import *
 from bidexhands.tasks.hand_base.base_task import BaseTask
 from isaacgym import gymtorch
 from isaacgym import gymapi
+import wandb
 
 
 class ShadowHandRubiksCube(BaseTask):
@@ -359,27 +360,36 @@ class ShadowHandRubiksCube(BaseTask):
         # Define face DOFs for right, top, bottom, and left faces
         right_face_dofs = ["pX", "nY_pX_pZ_0","nY_nZ_pX_0",  "nY_pX_0", "pX_pZ_0","nZ_pX_0","pX_pY_0", "pX_pY_pZ_0", "nZ_pX_pY_0"] #  Original
         #top_face_dofs = ["pZ", "nX_pZ_2", "pY_pZ_2","nY_pZ_2", "nX_pY_pZ_2","nX_nY_pZ_2", "pX_pZ_2", "pX_pY_pZ_2", "nY_pX_pZ_2"] # Original
-        top_face_dofs = [ "pZ", "nX_pZ_2", "pY_pZ_2","nY_pZ_2", "nX_pY_pZ_2","nX_nY_pZ_2","pX_pY_2", "pX_pY_pZ_2", "nZ_pX_pY_2" ]  #   After right rotation - forward
+        temp_face_dofs = ["pX_pY_0", "pX_pY_pZ_0", "nZ_pX_pY_0"]
+        top_face_dofs = [ "pZ", "pY_pZ_2","nY_pZ_2", "nX_pZ_2", "nX_pY_pZ_2","nX_nY_pZ_2","pX_pY_1", "pX_pY_pZ_1", "nZ_pX_pY_1"]  #  After right rotation - forward
         #top_face_dofs = ["pZ", "nX_pZ_2", "pY_pZ_2", "nY_pZ_2", "nX_pY_pZ_2", "nX_nY_pZ_2", "pX_pY_2", "pX_pY_pZ_2", "nZ_pX_pY_2"]
-        #bottom_face_dofs = ["nZ", "nZ_pX_2", "nZ_pY_2","nY_nZ_2", "nZ_pX_pY_2","nY_nZ_pX_2", "nX_nZ_pY_2", "nX_nY_nZ_2", "nX_nZ_2"] # Original
-        #left_face_dofs = ["nX", "nX_pZ_0", "nX_pY_pZ_0", "nX_nY_pZ_0","nX_pY_0", "nX_nZ_pY_0", "nX_nY_0", "nX_nZ_0","nX_nY_nZ_0"] # Original
-
+        bottom_face_dofs = ["nZ", "nZ_pX_2", "nZ_pY_2","nY_nZ_2", "nZ_pX_pY_2","nY_nZ_pX_2", "nX_nZ_pY_2", "nX_nY_nZ_2", "nX_nZ_2"] # Original
+        left_face_dofs = ["nX", "nX_pZ_0", "nX_pY_pZ_0", "nX_nY_pZ_0","nX_pY_0", "nX_nZ_pY_0", "nX_nY_0", "nX_nZ_0","nX_nY_nZ_0"] # Original
+        middle_face_dofs = ["nY", "pY", "nZ", "pZ", "pY_pZ_0", "nY_pZ_0", "nZ_pY_0","nY_nZ_0"]
         # Helper to get DOF indices
         def get_dof_indices(dofs):
             return [dof_index for dof_index in range(goal_num_dofs) if self.gym.get_asset_dof_name(self.goal_asset, dof_index) in dofs]
 
         # Collect DOF indices for each face
         right_face_dof_index = get_dof_indices(right_face_dofs)
+        temp_face_dof_index = get_dof_indices(temp_face_dofs)
         top_face_dof_index = get_dof_indices(top_face_dofs)
-        
+        left_face_dof_index = get_dof_indices(left_face_dofs)
+        bottom_face_dof_index = get_dof_indices(bottom_face_dofs)
+        middle_face_dof_index = get_dof_indices(middle_face_dofs)
+
         # Get current DOF states and apply rotations
         dof_states = self.gym.get_actor_dof_states(env_ptr, goal_handle, gymapi.STATE_ALL)
         dof_states = self.rotate_rubiks_face(dof_states, right_face_dof_index, np.pi / 2)
         #dof_states= self.rotate_rubiks_face(dof_states, left_face_dof_index, np.pi/2)
+        #dof_states= self.rotate_rubiks_face(dof_states, middle_face_dof_index, np.pi/2)
         self.gym.set_actor_dof_states(env_ptr, goal_handle, dof_states, gymapi.STATE_ALL)
 
-        dof_states = self.rotate_rubiks_face(dof_states, top_face_dof_index, -np.pi/4)
-        self.gym.set_actor_dof_states(env_ptr, goal_handle, dof_states, gymapi.STATE_ALL)
+         # Refresh state to avoid overlap issues
+        #dof_states = self.gym.get_actor_dof_states(env_ptr, goal_handle, gymapi.STATE_ALL)
+        #dof_states = self.rotate_rubiks_face(dof_states, temp_face_dof_index, -np.pi/2)
+        #dof_states = self.rotate_rubiks_face(dof_states, top_face_dof_index, np.pi/2)
+        #self.gym.set_actor_dof_states(env_ptr, goal_handle, dof_states, gymapi.STATE_ALL)
         #print("AATHIRA : Dof states after top rotation : ", self.gym.get_actor_dof_states(env_ptr, goal_handle, gymapi.STATE_ALL))
             
         #dof_states= self.rotate_rubiks_face(dof_states, right_face_dof_index, np.pi/2)
@@ -760,7 +770,13 @@ class ShadowHandRubiksCube(BaseTask):
         Args:
             actions (tensor): Actions of agents in the all environment 
         """
-        self.rew_buf[:], self.reset_buf[:], self.reset_goal_buf[:], self.progress_buf[:], self.successes[:], self.consecutive_successes[:] = compute_hand_reward(
+        self.dist_rew = torch.zeros(self.num_envs, device=self.device, dtype=torch.float)
+        self.rot_rew = torch.zeros(self.num_envs, device=self.device, dtype=torch.float)
+        self.goal_rew = torch.zeros(self.num_envs, device=self.device, dtype=torch.float)
+        self.hand_rew = torch.zeros(self.num_envs, device=self.device, dtype=torch.float)
+        self.dof_rew = torch.zeros(self.num_envs, device=self.device, dtype=torch.float)
+        
+        self.rew_buf[:], self.reset_buf[:], self.reset_goal_buf[:], self.progress_buf[:], self.successes[:], self.consecutive_successes[:], self.dist_rew[:], self.rot_rew[:], self.goal_rew[:], self.hand_rew[:], self.dof_rew[:] = compute_hand_reward(
             self.rew_buf, self.reset_buf, self.reset_goal_buf, self.progress_buf, self.successes, self.consecutive_successes,
             self.max_episode_length, self.object_pos, self.object_rot, self.goal_pos, self.goal_rot, self.object_dof_pos,
             self.left_hand_pos, self.right_hand_pos, self.right_hand_ff_pos, self.right_hand_mf_pos, self.right_hand_rf_pos, self.right_hand_lf_pos, self.right_hand_th_pos, 
@@ -770,6 +786,9 @@ class ShadowHandRubiksCube(BaseTask):
             self.max_consecutive_successes, self.av_factor, (self.object_type == "pen"), self.num_envs, self.object_dof_state, self.goal_dof_states
         )
 
+        self.rew_buf = self.rew_buf.detach()
+
+        
         
     def compute_observations(self):
         """
@@ -807,6 +826,25 @@ class ShadowHandRubiksCube(BaseTask):
         #Aathira : For debug lines to see the axis
         self.cube_1_pos = self.rigid_body_states[:, 26 * 2 + 1, 0:3]
         self.cube_1_rot = self.rigid_body_states[:, 26 * 2 + 1, 3:7]
+        self.goal_cube_1_pos = self.rigid_body_states[:, 26 * 2 + 28, 0:3]
+        self.goal_cube_1_rot = self.rigid_body_states[:, 26 * 2 + 28, 3:7]
+        self.goal_cube_2_pos = self.rigid_body_states[:, 26 * 2 + 29, 0:3]
+        self.goal_cube_2_rot = self.rigid_body_states[:, 26 * 2 + 29, 3:7]
+        self.goal_cube_3_pos = self.rigid_body_states[:, 26 * 2 + 30, 0:3]
+        self.goal_cube_3_rot = self.rigid_body_states[:, 26 * 2 + 30, 3:7]
+        self.goal_cube_4_pos = self.rigid_body_states[:, 26 * 2 + 31, 0:3]
+        self.goal_cube_4_rot = self.rigid_body_states[:, 26 * 2 + 31, 3:7]
+        self.goal_cube_5_pos = self.rigid_body_states[:, 26 * 2 + 32, 0:3]
+        self.goal_cube_5_rot = self.rigid_body_states[:, 26 * 2 + 32, 3:7]
+        self.goal_cube_6_pos = self.rigid_body_states[:, 26 * 2 + 33, 0:3]
+        self.goal_cube_6_rot = self.rigid_body_states[:, 26 * 2 + 33, 3:7]
+        self.goal_cube_7_pos = self.rigid_body_states[:, 26 * 2 + 34, 0:3]
+        self.goal_cube_7_rot = self.rigid_body_states[:, 26 * 2 + 34, 3:7]
+        self.goal_cube_8_pos = self.rigid_body_states[:, 26 * 2 + 35, 0:3]
+        self.goal_cube_8_rot = self.rigid_body_states[:, 26 * 2 + 35, 3:7]
+        self.goal_cube_9_pos = self.rigid_body_states[:, 26 * 2 + 36, 0:3]
+        self.goal_cube_9_rot = self.rigid_body_states[:, 26 * 2 + 36, 3:7]
+
 
         self.left_hand_pos = self.rigid_body_states[:, 3 + 26, 0:3]
         self.left_hand_rot = self.rigid_body_states[:, 3 + 26, 3:7]
@@ -1172,13 +1210,19 @@ class ShadowHandRubiksCube(BaseTask):
             for i in range(self.num_envs):
                 #Aathira changes
                 self.add_debug_lines(self.envs[i], self.cube_1_pos[i], self.cube_1_rot[i])
+                self.add_debug_lines(self.envs[i], self.goal_cube_1_pos[i], self.goal_cube_1_rot[i])
+                #self.add_debug_lines(self.envs[i], self.goal_cube_2_pos[i], self.goal_cube_2_rot[i])
+                #self.add_debug_lines(self.envs[i], self.goal_cube_3_pos[i], self.goal_cube_3_rot[i])
+                self.add_debug_lines(self.envs[i], self.goal_cube_5_pos[i], self.goal_cube_5_rot[i])
+                #self.add_debug_lines(self.envs[i], self.goal_cube_6_pos[i], self.goal_cube_6_rot[i])
+                #self.add_debug_lines(self.envs[i], self.goal_cube_7_pos[i], self.goal_cube_7_rot[i])
+                #self.add_debug_lines(self.envs[i], self.goal_cube_9_pos[i], self.goal_cube_9_rot[i])
                 
-
-                self.add_debug_lines(self.envs[i], self.right_hand_ff_pos[i], self.right_hand_ff_rot[i])
-                self.add_debug_lines(self.envs[i], self.right_hand_mf_pos[i], self.right_hand_mf_rot[i])
-                self.add_debug_lines(self.envs[i], self.right_hand_rf_pos[i], self.right_hand_rf_rot[i])
-                self.add_debug_lines(self.envs[i], self.right_hand_lf_pos[i], self.right_hand_lf_rot[i])
-                self.add_debug_lines(self.envs[i], self.right_hand_th_pos[i], self.right_hand_th_rot[i])
+                #self.add_debug_lines(self.envs[i], self.right_hand_ff_pos[i], self.right_hand_ff_rot[i])
+                #self.add_debug_lines(self.envs[i], self.right_hand_mf_pos[i], self.right_hand_mf_rot[i])
+                #self.add_debug_lines(self.envs[i], self.right_hand_rf_pos[i], self.right_hand_rf_rot[i])
+                #self.add_debug_lines(self.envs[i], self.right_hand_lf_pos[i], self.right_hand_lf_rot[i])
+                #self.add_debug_lines(self.envs[i], self.right_hand_th_pos[i], self.right_hand_th_rot[i])
 
                 #self.add_debug_lines(self.envs[i], self.left_hand_ff_pos[i], self.right_hand_ff_rot[i])
                 #self.add_debug_lines(self.envs[i], self.left_hand_mf_pos[i], self.right_hand_mf_rot[i])
@@ -1335,7 +1379,7 @@ def compute_hand_reward(
     #action_penalty_rew = -action_penalty_scale * action_penalty
 
     # Apply all components to compute the final reward
-    rew_buf[:] = dist_rew + rot_rew + goal_rew + hand_rew + dof_rew #theoritically the highest posibble reward = 850
+    rew_buf = dist_rew + rot_rew + goal_rew + hand_rew + dof_rew #theoritically the highest posibble reward = 850
     
     # Check if object fell out of reach and apply fall penalty
     fell = (right_hand_dist > fall_dist) | (left_hand_dist > fall_dist)
@@ -1347,10 +1391,14 @@ def compute_hand_reward(
     # Reset environment if max episode length reached or object fell
     resets = (progress_buf >= max_episode_length) | fell | goal_reached
     reset_buf[:] = resets.float()
-
+   
     
-    return rew_buf, reset_buf, reset_goal_buf, progress_buf, successes, consecutive_successes
+    return rew_buf, reset_buf, reset_goal_buf, progress_buf, successes, consecutive_successes, dist_rew, rot_rew, goal_rew, hand_rew, dof_rew
 
+
+
+"""
+==========================================================================================================================
 @torch.jit.script
 def randomize_rotation(rand0, rand1, x_unit_tensor, y_unit_tensor):
     return quat_mul(quat_from_angle_axis(rand0 * np.pi, x_unit_tensor),
@@ -1362,10 +1410,7 @@ def randomize_rotation_pen(rand0, rand1, max_angle, x_unit_tensor, y_unit_tensor
     rot = quat_mul(quat_from_angle_axis(0.5 * np.pi + rand0 * max_angle, x_unit_tensor),
                    quat_from_angle_axis(rand0 * np.pi, z_unit_tensor))
     return rot
-
-
-"""
-
+==========================================================================================================================
 def set_object_rotation(self, sim, root_state_tensor, goal_indices):
         
         Set the new rotation for the object in Isaac Gym.

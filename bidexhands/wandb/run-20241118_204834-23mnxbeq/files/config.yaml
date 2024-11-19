@@ -1,0 +1,106 @@
+_wandb:
+    value:
+        cli_version: 0.18.7
+        m: []
+        python_version: 3.8.10
+        t:
+            "1":
+                - 1
+                - 55
+            "2":
+                - 1
+                - 55
+            "3":
+                - 16
+                - 23
+                - 55
+            "4": 3.8.10
+            "5": 0.18.7
+            "8":
+                - 5
+            "12": 0.18.7
+            "13": linux-x86_64
+algo:
+    value: ppo
+cfg_env:
+    value: cfg/ShadowHandRubiksCube.yaml
+cfg_train:
+    value: cfg/ppo/config.yaml
+checkpoint:
+    value: Base
+compute_device_id:
+    value: 0
+datatype:
+    value: random
+device:
+    value: cuda
+device_id:
+    value: 0
+episode_length:
+    value: 0
+experiment:
+    value: Base
+flex:
+    value: false
+graphics_device_id:
+    value: 0
+headless:
+    value: false
+horovod:
+    value: false
+logdir:
+    value: logs/ShadowHandRubiksCube/ppo/ppo
+max_iterations:
+    value: -1
+metadata:
+    value: false
+minibatch_size:
+    value: -1
+model_dir:
+    value: ""
+num_envs:
+    value: 0
+num_threads:
+    value: 0
+physics_engine:
+    value: SimType.SIM_PHYSX
+physx:
+    value: false
+pipeline:
+    value: gpu
+play:
+    value: false
+randomize:
+    value: false
+resume:
+    value: 0
+rl_device:
+    value: cuda:0
+seed:
+    value: null
+sim_device:
+    value: cuda:0
+sim_device_type:
+    value: cuda
+slices:
+    value: 0
+steps_num:
+    value: -1
+subscenes:
+    value: 0
+task:
+    value: ShadowHandRubiksCube
+task_type:
+    value: Python
+test:
+    value: false
+torch_deterministic:
+    value: false
+train:
+    value: true
+use_gpu:
+    value: true
+use_gpu_pipeline:
+    value: true
+use_wandb:
+    value: true

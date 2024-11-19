@@ -216,6 +216,8 @@ def parse_sim_params(args, cfg, cfg_train):
 
 def get_args(benchmark=False, use_rlg_config=False, task_name="", algo=""):
     custom_parameters = [
+        {"name": "--use_wandb", "type": bool, "action": "store_true", "default": False,
+            "help": "Enable wandb logging"},
         {"name": "--test", "action": "store_true", "default": False,
             "help": "Run trained policy, no training"},
         {"name": "--play", "action": "store_true", "default": False,

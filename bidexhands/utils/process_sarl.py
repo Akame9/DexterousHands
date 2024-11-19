@@ -27,7 +27,8 @@ def process_sarl(args, env, cfg_train, logdir):
               is_testing=is_testing,
               print_log=learn_cfg["print_log"],
               apply_reset=False,
-              asymmetric=(env.num_states > 0)
+              asymmetric=(env.num_states > 0),
+              use_wandb=args.use_wandb
               )
 
     # ppo.test("/home/hp-3070/logs/demo/scissors/ppo_seed0/model_6000.pt")

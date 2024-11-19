@@ -8,7 +8,7 @@
 from ast import arg
 import numpy as np
 import random
-
+import wandb
 from bidexhands.utils.config import set_np_formatting, set_seed, get_args, parse_sim_params, load_cfg
 from bidexhands.utils.parse_task import parse_task
 from bidexhands.utils.process_sarl import process_sarl
@@ -50,6 +50,10 @@ def train():
     elif args.algo in OFFRL_ALGOS:
         pass 
 
+    if args.use_wandb:
+        wandb.init(project="DexterousHands", config=vars(args))  # Initialize wandb
+        wandb.config.update(args)
+
     task, env = parse_task(args, cfg, cfg_train, sim_params, agent_index)
     runner = eval('process_{}'.format(algo))(args, env, cfg_train, logdir)
     iterations = cfg_train["learn"]["max_iterations"]
@@ -58,7 +62,10 @@ def train():
 
     runner.train(train_epoch=iterations) if args.algo in META_ALGOS else \
         runner.run(num_learning_iterations=iterations, log_interval=cfg_train["learn"]["save_interval"])
-        
+    
+    if args.use_wandb:
+        wandb.finish()
+
 if __name__ == '__main__':
     set_np_formatting()
     args = get_args()

@@ -57,6 +57,7 @@ def parse_task(args, cfg, cfg_train, sim_params, agent_index):
     cfg_task["seed"] = cfg["seed"]
 
     if args.task_type == "C++":
+        print("Task Type : C++")
         if args.device == "cpu":
             print("C++ CPU")
             task = rlgpu.create_task_cpu(args.task, json.dumps(cfg_task))
@@ -80,7 +81,7 @@ def parse_task(args, cfg, cfg_train, sim_params, agent_index):
             env = VecTaskGPU(task, rl_device, cfg_train.get("clip_observations", 5.0), cfg_train.get("clip_actions", 1.0))
 
     elif args.task_type == "Python":
-        print("Python")
+        print("Task Type : Python")
 
         try:
             task = eval(args.task)(
@@ -100,7 +101,7 @@ def parse_task(args, cfg, cfg_train, sim_params, agent_index):
             env = VecTaskPython(task, rl_device)
 
     elif args.task_type == "MultiAgent":
-        print("MultiAgent")
+        print("Task Type : MultiAgent")
 
         try:
             task = eval(args.task)(
