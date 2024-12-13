@@ -130,6 +130,7 @@ class MultiVecTaskPython(MultiVecTask):
     def step(self, actions):
 
         a_hand_actions = actions[0]
+        #print("AATHIRA : a_hand_actions shape: ", a_hand_actions.shape)
         for i in range(1, len(actions)):
             a_hand_actions = torch.hstack((a_hand_actions, actions[i]))
         actions = a_hand_actions
@@ -137,6 +138,7 @@ class MultiVecTaskPython(MultiVecTask):
         actions_tensor = torch.clamp(actions, -self.clip_actions, self.clip_actions)
 
         self.task.step(actions_tensor)
+        #print("AATHIRA : actions_tensor shape: ", actions_tensor.shape)
 
         hand_obs = []
         obs_buf = torch.clamp(self.task.obs_buf, -self.clip_obs, self.clip_obs).to(self.rl_device)
@@ -145,6 +147,7 @@ class MultiVecTaskPython(MultiVecTask):
         state_buf = torch.clamp(self.task.obs_buf, -self.clip_obs, self.clip_obs)
 
         rewards = self.task.rew_buf.unsqueeze(-1).to(self.rl_device)
+        #print("AATHIRA : rewards shape : ", rewards.shape)
         dones = self.task.reset_buf.to(self.rl_device)
 
         sub_agent_obs = []
@@ -169,7 +172,7 @@ class MultiVecTaskPython(MultiVecTask):
         done_all = torch.transpose(torch.stack(sub_agent_done), 1, 0)
         info_all = torch.stack(sub_agent_info)
 
-        return obs_all, state_all, reward_all, done_all, info_all, None
+        return obs_all, state_all, reward_all, done_all, info_all, None, self.task.dist_rew.to(self.rl_device), self.task.rot_rew.to(self.rl_device), self.task.goal_rew.to(self.rl_device), self.task.hand_rew.to(self.rl_device), self.task.dof_rew.to(self.rl_device), self.task.fall_rew.to(self.rl_device), self.task.collision_rew.to(self.rl_device)
 
     def reset(self):
         actions = 0.01 * (1 - 2 * torch.rand([self.task.num_envs, self.task.num_actions * 2], dtype=torch.float32, device=self.rl_device))

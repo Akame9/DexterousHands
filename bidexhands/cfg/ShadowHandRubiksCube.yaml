@@ -1,7 +1,7 @@
 # if given, will override the device setting in gym. 
 env: 
   env_name: "shadow_hand_rubiks_cube"
-  numEnvs: 20
+  numEnvs: 128 # Check how many parallel env where used in the paper
   envSpacing: 1.5
   episodeLength: 150
   enableDebugVis: True # Aathira change False
@@ -32,7 +32,7 @@ env:
   actionPenaltyScale: -0.0002
   reachGoalBonus: 250
   fallDistance: 0.15 #0.4 # Aathira : check the cube height
-  fallPenalty: -0.5 # Aathira : give a non-zero value
+  fallPenalty: -5 #0.5 # Aathira : give a non-zero value
 
   objectType: "pot" # can be block, egg or pen
   observationType: "full_state" # full_state or point_cloud

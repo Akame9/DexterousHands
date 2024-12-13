@@ -4,7 +4,7 @@ from torch.utils.data.sampler import BatchSampler, SequentialSampler, SubsetRand
 
 class RolloutStorage:
 
-    def __init__(self, num_envs, num_transitions_per_env, obs_shape, states_shape, actions_shape, device='cpu', sampler='sequential'):
+    def __init__(self, num_envs, num_transitions_per_env, obs_shape, states_shape, actions_shape, device='cpu', sampler='sequential'): 
 
         self.device = device
         self.sampler = sampler
@@ -76,6 +76,7 @@ class RolloutStorage:
         batch_size = self.num_envs * self.num_transitions_per_env
         mini_batch_size = batch_size // num_mini_batches
 
+        # Try both sequential and Random
         if self.sampler == "sequential":
             # For physics-based RL, each environment is already randomized. There is no value to doing random sampling
             # but a lot of CPU overhead during the PPO process. So, we can just switch to a sequential sampler instead

@@ -378,6 +378,7 @@ class ShadowHandRubiksCube(BaseTask):
         bottom_face_dof_index = get_dof_indices(bottom_face_dofs)
         middle_face_dof_index = get_dof_indices(middle_face_dofs)
 
+        self.right_face_dof_index = torch.tensor(right_face_dof_index)
         # Get current DOF states and apply rotations
         dof_states = self.gym.get_actor_dof_states(env_ptr, goal_handle, gymapi.STATE_ALL)
         dof_states = self.rotate_rubiks_face(dof_states, right_face_dof_index, np.pi / 2)
@@ -565,7 +566,7 @@ class ShadowHandRubiksCube(BaseTask):
         pose_dx, pose_dy, pose_dz = -1.0, 0.0, -0.0
        
         # Aathira changed
-        self.goal_displacement = gymapi.Vec3(-0.03, 0.0, 0.2)
+        self.goal_displacement = gymapi.Vec3(0.0, 0., 0.2)
         self.goal_displacement_tensor = to_torch(
             [self.goal_displacement.x, self.goal_displacement.y, self.goal_displacement.z], device=self.device)
         goal_start_pose = gymapi.Transform()
@@ -752,7 +753,7 @@ class ShadowHandRubiksCube(BaseTask):
         self.table_indices = to_torch(self.table_indices, dtype=torch.long, device=self.device)
         self.bucket_indices = to_torch(self.bucket_indices, dtype=torch.long, device=self.device)
         self.ball_indices = to_torch(self.ball_indices, dtype=torch.long, device=self.device)
-        self.goal_dof_states = to_torch(self.goal_dof_states, dtype=torch.long, device=self.device)
+        self.goal_dof_states = to_torch(self.goal_dof_states, dtype=torch.float, device=self.device)
         
     def compute_reward(self, actions):
         """
@@ -775,15 +776,17 @@ class ShadowHandRubiksCube(BaseTask):
         self.goal_rew = torch.zeros(self.num_envs, device=self.device, dtype=torch.float)
         self.hand_rew = torch.zeros(self.num_envs, device=self.device, dtype=torch.float)
         self.dof_rew = torch.zeros(self.num_envs, device=self.device, dtype=torch.float)
+        self.fall_rew = torch.zeros(self.num_envs, device=self.device, dtype=torch.float)
+        self.collision_rew = torch.zeros(self.num_envs, device=self.device, dtype=torch.float)
         
-        self.rew_buf[:], self.reset_buf[:], self.reset_goal_buf[:], self.progress_buf[:], self.successes[:], self.consecutive_successes[:], self.dist_rew[:], self.rot_rew[:], self.goal_rew[:], self.hand_rew[:], self.dof_rew[:] = compute_hand_reward(
+        self.rew_buf[:], self.reset_buf[:], self.reset_goal_buf[:], self.progress_buf[:], self.successes[:], self.consecutive_successes[:], self.dist_rew[:], self.rot_rew[:], self.goal_rew[:], self.hand_rew[:], self.dof_rew[:], self.fall_rew[:], self.collision_rew[:] = compute_hand_reward(
             self.rew_buf, self.reset_buf, self.reset_goal_buf, self.progress_buf, self.successes, self.consecutive_successes,
             self.max_episode_length, self.object_pos, self.object_rot, self.goal_pos, self.goal_rot, self.object_dof_pos,
             self.left_hand_pos, self.right_hand_pos, self.right_hand_ff_pos, self.right_hand_mf_pos, self.right_hand_rf_pos, self.right_hand_lf_pos, self.right_hand_th_pos, 
             self.left_hand_ff_pos, self.left_hand_mf_pos, self.left_hand_rf_pos, self.left_hand_lf_pos, self.left_hand_th_pos, 
             self.dist_reward_scale, self.rot_reward_scale, self.rot_eps, self.actions, self.action_penalty_scale,
             self.success_tolerance, self.reach_goal_bonus, self.fall_dist, self.fall_penalty,
-            self.max_consecutive_successes, self.av_factor, (self.object_type == "pen"), self.num_envs, self.object_dof_state, self.goal_dof_states
+            self.max_consecutive_successes, self.av_factor, (self.object_type == "pen"), self.num_envs, self.object_dof_state, self.goal_dof_states, self.right_face_dof_index
         )
 
         self.rew_buf = self.rew_buf.detach()
@@ -1248,6 +1251,54 @@ class ShadowHandRubiksCube(BaseTask):
 ###=========================jit functions=========================###
 #####################################################################
 
+def dof_to_rotation_matrices(dof_values, axis: float):
+    # Extract the position (angles) from DOF values
+    angles_rad = dof_values[..., 0] 
+    # Initialize rotation matrices
+    num_envs, num_dofs = angles_rad.shape
+    rotation_matrices = torch.zeros((num_envs, num_dofs, 3, 3), dtype=torch.float32)
+
+    # Compute rotation matrices for the specified axis
+    if axis == 1.0:
+        rotation_matrices[..., 0, 0] = 1
+        rotation_matrices[..., 1, 1] = torch.cos(angles_rad)
+        rotation_matrices[..., 1, 2] = -torch.sin(angles_rad)
+        rotation_matrices[..., 2, 1] = torch.sin(angles_rad)
+        rotation_matrices[..., 2, 2] = torch.cos(angles_rad)
+    elif axis == 2.0:
+        rotation_matrices[..., 0, 0] = torch.cos(angles_rad)
+        rotation_matrices[..., 0, 2] = torch.sin(angles_rad)
+        rotation_matrices[..., 1, 1] = 1
+        rotation_matrices[..., 2, 0] = -torch.sin(angles_rad)
+        rotation_matrices[..., 2, 2] = torch.cos(angles_rad)
+    elif axis == 3.0:
+        rotation_matrices[..., 0, 0] = torch.cos(angles_rad)
+        rotation_matrices[..., 0, 1] = -torch.sin(angles_rad)
+        rotation_matrices[..., 1, 0] = torch.sin(angles_rad)
+        rotation_matrices[..., 1, 1] = torch.cos(angles_rad)
+        rotation_matrices[..., 2, 2] = 1
+    else:
+        raise ValueError("Invalid axis. Choose from 'x', 'y', or 'z'.")
+
+    
+    return rotation_matrices
+
+def rotation_matrix_distance(R1, R2):
+    # Compute the relative rotation matrix
+    R_diff = torch.matmul(R1.T, R2)
+    
+    # Compute the trace of the relative rotation matrix
+    trace = torch.trace(R_diff)
+    
+    # Clamp the trace to the range [-1, 3] to avoid numerical issues with arccos
+    trace = torch.clamp(trace, min=-1.0, max=3.0)
+    
+    # Compute the angle
+    angle = torch.arccos((trace - 1) / 2.0)
+    
+    return angle
+
+
 
 @torch.jit.script
 def compute_hand_reward(
@@ -1259,7 +1310,7 @@ def compute_hand_reward(
     actions, action_penalty_scale: float,
     success_tolerance: float, reach_goal_bonus: float, fall_dist: float,
     fall_penalty: float, max_consecutive_successes: int, av_factor: float, ignore_z_rot: bool,
-    num_envs: int, object_dof_states, goal_dof_states
+    num_envs: int, object_dof_states, goal_dof_states, right_face_dof_index
 ):
     """
     Compute the reward of all environment.
@@ -1343,33 +1394,60 @@ def compute_hand_reward(
     """
 
     # Calculate distance reward (distance between object and target)
-    dist = torch.norm(object_pos[..., :2] - target_pos[..., :2], dim=-1) #torch.norm(object_pos - target_pos, dim=-1)
-    #print("AATHIRA : dist : ", dist)
-    dist_rew = dist_reward_scale / (dist + 0.1)
+    dist = torch.norm(object_pos[..., :2] - target_pos[..., :2], dim=-1) 
+    # dist_z is used to maintain the height of the cube from the table.
+    dist_z = object_pos[..., 2] - (target_pos[..., 2] - 0.2) # torch.norm(object_pos[..., 2] - (target_pos[..., 2] - 0.2),dim=-1) #  Check this?
+    
+    dist_rew = dist_reward_scale / (dist + dist_z + 0.1)
     #print("AATHIRA : dist_rew : ", dist_rew)
     # Calculate rotation reward (orientation difference between object and target)
     rot_dist = torch.norm(object_rot - target_rot, dim=-1) # How is rotation distance calculated?
     #print("AATHIRA : rot_dist : ", rot_dist)
     rot_rew = rot_reward_scale / (rot_dist + rot_eps)
     #print("AATHIRA : rot_rew : ", rot_rew)
+    collision_dist = torch.norm(right_hand_pos - left_hand_pos, dim=-1)
+    # Collision condition
+    collision_mask = collision_dist < 0.11
+
+    # Calculate collision reward
+    collision_rew = torch.zeros_like(collision_dist)
+    collision_rew[collision_mask] = -(1 / (collision_dist[collision_mask] + 0.1))  # Reward is proportional to how close they are
 
     # Reward based on hand proximity to the cube object
     right_hand_dist = torch.norm(right_hand_pos - object_pos, dim=-1)
     #print("AATHIRA : right_hand_dist : ", right_hand_dist)
     left_hand_dist = torch.norm(left_hand_pos - object_pos, dim=-1)
     #print("AATHIRA : left_hand_dist : ", left_hand_dist)
-    hand_rew = -0.5 * (right_hand_dist + left_hand_dist)
+    #hand_rew = -0.5 * (right_hand_dist + left_hand_dist)
+    hand_rew = (1 / (right_hand_dist + 0.1)) + (1 / (left_hand_dist + 0.1))
     #print("AATHIRA : hand_rew : ", hand_rew)
 
     # Calculate DOF distance reward (distance between object DOF states and goal DOF states)
-    num_object_dof_states = object_dof_states.shape[1] * object_dof_states.shape[2]
-    object_dof_states_reshaped = object_dof_states.reshape(num_envs, num_object_dof_states)
-    goal_dof_states_reshaped = goal_dof_states.reshape(num_envs, num_object_dof_states)
-    dof_dist = torch.norm(object_dof_states_reshaped - goal_dof_states_reshaped, dim=-1)
+    #========================================================================================
+    #num_object_dof_states = object_dof_states.shape[1] * object_dof_states.shape[2]
+    #object_dof_states_reshaped = object_dof_states.reshape(num_envs, num_object_dof_states)
+    #goal_dof_states_reshaped = goal_dof_states.reshape(num_envs, num_object_dof_states)
+    #dof_dist = torch.norm(object_dof_states_reshaped - goal_dof_states_reshaped, dim=-1)
+    
+    #object_dof_states_changed = object_dof_states[:, right_face_dof_index, 0]
+    #goal_dof_states_changed = goal_dof_states[:, right_face_dof_index, 0]
+    #dof_dist = torch.norm(object_dof_states_changed - goal_dof_states_changed, dim=-1)
+    
+    object_dof_states_changed = object_dof_states[:, right_face_dof_index]
+    goal_dof_states_changed = goal_dof_states[:, right_face_dof_index]
+    obj_rotation_matrices = dof_to_rotation_matrices(object_dof_states_changed, 1.0)
+    goal_rotation_matrices = dof_to_rotation_matrices(goal_dof_states_changed, 1.0)
+    dof_dist = torch.zeros(num_envs, device="cuda")
+    for i in range(num_envs):
+        for j in range(len(obj_rotation_matrices[0])):
+            dof_dist[i] += rotation_matrix_distance(obj_rotation_matrices[i][j], goal_rotation_matrices[i][j])
+    
+    amplification_factor = 2
     #print("AATHIRA : dof_dist : ", dof_dist)
-    dof_rew = 20 / (dof_dist + 0.1)
-    #print("AATHIRA : dof_rew : ", dof_rew)
-
+    #dof_dist_normalized = dof_dist / 15 # Scale `dof_dist` to [0, 1] # We don't exactly know the highest value to scale it.
+    dof_dist_transformed = torch.pow(dof_dist, amplification_factor)
+    dof_rew = -dof_dist_transformed
+    
     # Success criteria for reaching the goal
     goal_reached = (dist < success_tolerance) & (rot_dist < rot_eps) & (dof_dist < 0.1) # Add cubelet pos and rot
     goal_rew = goal_reached.float() * reach_goal_bonus
@@ -1379,11 +1457,13 @@ def compute_hand_reward(
     #action_penalty_rew = -action_penalty_scale * action_penalty
 
     # Apply all components to compute the final reward
-    rew_buf = dist_rew + rot_rew + goal_rew + hand_rew + dof_rew #theoritically the highest posibble reward = 850
+    rew_buf = dist_rew + rot_rew + goal_rew + hand_rew + dof_rew + collision_rew #theoritically the highest posibble reward = 850
     
     # Check if object fell out of reach and apply fall penalty
     fell = (right_hand_dist > fall_dist) | (left_hand_dist > fall_dist)
+    #print("AATHIRA : Fell : ", fell)
     fall_rew = fell.float() * fall_penalty
+
     #print("AATHIRA : fall_rew : ", fall_rew)
     rew_buf += fall_rew
     #print("AATHIRA : rew_buf : ", rew_buf)
@@ -1393,7 +1473,7 @@ def compute_hand_reward(
     reset_buf[:] = resets.float()
    
     
-    return rew_buf, reset_buf, reset_goal_buf, progress_buf, successes, consecutive_successes, dist_rew, rot_rew, goal_rew, hand_rew, dof_rew
+    return rew_buf, reset_buf, reset_goal_buf, progress_buf, successes, consecutive_successes, dist_rew, rot_rew, goal_rew, hand_rew, dof_rew, fall_rew, collision_rew
 
 
 

@@ -132,6 +132,7 @@ bidexhands/logs/
 bidexhands/runs/
 # contact buffer and other info created in running
 bidexhands/runs
+bidexhands/wandb
 # too large files in assets
 assets/dataset
 

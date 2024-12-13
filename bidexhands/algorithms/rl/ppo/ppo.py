@@ -110,7 +110,7 @@ class PPO:
                     # Compute the action
                     actions = self.actor_critic.act_inference(current_obs)
                     # Step the vec_environment
-                    next_obs, rews, dones, infos = self.vec_env.step(actions)
+                    next_obs, rews, dones, infos, _,_,_,_,_,_,_ = self.vec_env.step(actions)
                     current_obs.copy_(next_obs)
         else:
             rewbuffer = deque(maxlen=100)
@@ -130,6 +130,8 @@ class PPO:
                 goal_rew_mean = []
                 hand_rew_mean = []
                 dof_rew_mean = []
+                fell_rew_mean = []
+                collision_rew_mean = []
                 # Rollout
                 for _ in range(self.num_transitions_per_env):
                     if self.apply_reset:
@@ -138,7 +140,8 @@ class PPO:
                     # Compute the action
                     actions, actions_log_prob, values, mu, sigma = self.actor_critic.act(current_obs, current_states)
                     # Step the vec_environment
-                    next_obs, rews, dones, infos, dist_rew, rot_rew, goal_rew, hand_rew, dof_rew = self.vec_env.step(actions)
+                    # AATHIRA : when is done happening in rubiks cube environment?
+                    next_obs, rews, dones, infos, dist_rew, rot_rew, goal_rew, hand_rew, dof_rew, fell_rew, collision_rew = self.vec_env.step(actions)
                         
                     reward_mean.append(torch.mean(rews))
                     dist_rew_mean.append(torch.mean(dist_rew))
@@ -146,6 +149,8 @@ class PPO:
                     goal_rew_mean.append(torch.mean(goal_rew))
                     hand_rew_mean.append(torch.mean(hand_rew))
                     dof_rew_mean.append(torch.mean(dof_rew))
+                    fell_rew_mean.append(torch.mean(fell_rew))
+                    collision_rew_mean.append(torch.mean(collision_rew))
                     
                     next_states = self.vec_env.get_state()
                     # Record the transition
@@ -198,6 +203,8 @@ class PPO:
                     wandb.log({"goal_rew": torch.mean(torch.tensor(goal_rew_mean))}, step=it)
                     wandb.log({"hand_rew": torch.mean(torch.tensor(hand_rew_mean))}, step=it)
                     wandb.log({"dof_rew": torch.mean(torch.tensor(dof_rew_mean))}, step=it)
+                    wandb.log({"fell_rew": torch.mean(torch.tensor(fell_rew_mean))}, step=it)
+                    wandb.log({"collision_rew": torch.mean(torch.tensor(collision_rew_mean))}, step=it)
                     
 
             self.save(os.path.join(self.log_dir, 'model_{}.pt'.format(num_learning_iterations)))

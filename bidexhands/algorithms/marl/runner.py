@@ -2,7 +2,7 @@ from curses import KEY_SUSPEND
 from datetime import datetime
 import os
 import time
-
+import wandb
 from gym.spaces import Space
 
 import numpy as np
@@ -26,10 +26,12 @@ class Runner:
     def __init__(self,
                  vec_env,
                  config,
-                 model_dir=""
+                 model_dir="",
+                 use_wandb=False
                  ):
         self.envs = vec_env
         self.eval_envs = vec_env
+        self.use_wandb = use_wandb
         # parameters
         self.env_name = vec_env.task.cfg["env"]["env_name"]
         self.algorithm_name = config["algorithm_name"]
@@ -116,7 +118,7 @@ class Runner:
         start = time.time()
         print("Episode_length : ", self.episode_length) # This value comes from the happo config.yaml
         print("N rollout threads : ", self.n_rollout_threads) # The value present in happo config.yaml is updated by the process_marl.py file
-        episodes = int(self.num_env_steps) // self.episode_length // self.n_rollout_threads
+        episodes = int(self.num_env_steps) // self.episode_length // self.n_rollout_threads # AATHIRA : why rollout_threads are being divided here?
 
         train_episode_rewards = torch.zeros(1, self.n_rollout_threads, device=self.device)
 
@@ -125,14 +127,31 @@ class Runner:
                 self.trainer.policy.lr_decay(episode, episodes)
 
             done_episodes_rewards = []
+            reward_mean = []
+            dist_rew_mean = []
+            rot_rew_mean = []
+            goal_rew_mean = []
+            hand_rew_mean = []
+            dof_rew_mean = []
+            fell_rew_mean = []
+            collision_rew_mean = []
 
             for step in range(self.episode_length):
                 # Sample actions
                 values, actions, action_log_probs, rnn_states, rnn_states_critic = self.collect(step)
 
                 # Obser reward and next obs
-                obs, share_obs, rewards, dones, infos, _ = self.envs.step(actions)
-                
+                obs, share_obs, rewards, dones, infos,_, dist_rew, rot_rew, goal_rew, hand_rew, dof_rew, fell_rew, collision_rew = self.envs.step(actions) 
+                #print("AATHIRA : rewards shape : ", rewards.shape)
+                reward_mean.append(torch.mean(rewards))
+                dist_rew_mean.append(torch.mean(dist_rew))
+                rot_rew_mean.append(torch.mean(rot_rew))
+                goal_rew_mean.append(torch.mean(goal_rew))
+                hand_rew_mean.append(torch.mean(hand_rew))
+                dof_rew_mean.append(torch.mean(dof_rew))
+                fell_rew_mean.append(torch.mean(fell_rew))
+                collision_rew_mean.append(torch.mean(collision_rew))
+                    
                 dones_env = torch.all(dones, dim=1)
 
                 reward_env = torch.mean(rewards, dim=1).flatten()
@@ -150,10 +169,26 @@ class Runner:
 
                 # insert data into buffer
                 self.insert(data)
+                      
 
             # compute return and update network
             self.compute()
             train_infos = self.train()
+            #print("AATHIRA : train_infos : ", train_infos)
+            #print("AATHIRA : self.num_agents : ", self.num_agents)
+            if self.use_wandb==True:
+                    wandb.log({"value_loss_1": train_infos[0]["value_loss"],"value_loss_2": train_infos[1]["value_loss"] }, step=episode)
+                    wandb.log({"policy_loss_1": train_infos[0]["policy_loss"],"policy_loss_2": train_infos[1]["policy_loss"] }, step=episode)
+                    wandb.log({"reward_mean_each_iter": torch.mean(torch.tensor(reward_mean))}, step=episode)
+                    #wandb.log({"mean_value_loss": mean_value_loss, "mean_surrogate_loss": mean_surrogate_loss}, step=episode)
+                    # Debugging purposes : 
+                    wandb.log({"dist_rew": torch.mean(torch.tensor(dist_rew_mean))}, step=episode)
+                    wandb.log({"rot_rew": torch.mean(torch.tensor(rot_rew_mean))}, step=episode)
+                    wandb.log({"goal_rew": torch.mean(torch.tensor(goal_rew_mean))}, step=episode)
+                    wandb.log({"hand_rew": torch.mean(torch.tensor(hand_rew_mean))}, step=episode)
+                    wandb.log({"dof_rew": torch.mean(torch.tensor(dof_rew_mean))}, step=episode)
+                    wandb.log({"fell_rew": torch.mean(torch.tensor(fell_rew_mean))}, step=episode)
+                    wandb.log({"collision_rew": torch.mean(torch.tensor(collision_rew_mean))}, step=episode)
 
             # post process
             total_num_steps = (episode + 1) * self.episode_length * self.n_rollout_threads
@@ -379,7 +414,7 @@ class Runner:
             eval_actions = eval_actions_collector
 
             # Obser reward and next obs
-            eval_obs, eval_share_obs, eval_rewards, eval_dones, eval_infos, _ = self.eval_envs.step(
+            eval_obs, eval_share_obs, eval_rewards, eval_dones, eval_infos, _, _,_,_,_,_,_,_ = self.eval_envs.step(
                 eval_actions)
 
             for eval_i in range(self.n_eval_rollout_threads):

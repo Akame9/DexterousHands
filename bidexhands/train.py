@@ -30,6 +30,10 @@ def train():
         "Unrecognized algorithm!\nAlgorithm should be one of: [happo, hatrpo, mappo,ippo, \
             maddpg,sac,td3,trpo,ppo,ddpg, mtppo, random, mamlppo, td3_bc, bcq, iql, ppo_collect]"
     algo = args.algo
+    if args.use_wandb:
+        wandb.init(project="DexterousHands", config=vars(args))  # Initialize wandb
+        wandb.config.update(args)
+
     if args.algo in MARL_ALGOS: 
         # maddpg exists a bug now 
         args.task_type = "MultiAgent"
@@ -40,6 +44,8 @@ def train():
             runner.eval(1000)
         else:
             runner.run()
+        if args.use_wandb:
+            wandb.finish()
         return
     elif args.algo in SARL_ALGOS:
         algo = "sarl"
@@ -49,10 +55,6 @@ def train():
         args.task_type = "Meta"
     elif args.algo in OFFRL_ALGOS:
         pass 
-
-    if args.use_wandb:
-        wandb.init(project="DexterousHands", config=vars(args))  # Initialize wandb
-        wandb.config.update(args)
 
     task, env = parse_task(args, cfg, cfg_train, sim_params, agent_index)
     runner = eval('process_{}'.format(algo))(args, env, cfg_train, logdir)

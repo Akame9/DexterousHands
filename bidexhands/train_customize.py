@@ -18,4 +18,4 @@ terminated = False
 
 while not terminated:
     act = torch.tensor(env.action_space.sample()).repeat((env.num_envs, 1))
-    obs, reward, done, info = env.step(act)
+    obs, reward, done, info, _,_,_,_,_,_ = env.step(act)

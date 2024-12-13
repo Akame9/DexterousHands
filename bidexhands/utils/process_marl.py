@@ -25,7 +25,8 @@ def process_MultiAgentRL(args,env, config, model_dir=""):
         from bidexhands.algorithms.marl.runner import Runner
         marl = Runner(vec_env=env,
                     config=config,
-                    model_dir=model_dir
+                    model_dir=model_dir,
+                    use_wandb = args.use_wandb
                     )
     elif args.algo == 'maddpg':
         # off policy marl

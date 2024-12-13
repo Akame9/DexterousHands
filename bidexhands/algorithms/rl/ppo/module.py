@@ -35,6 +35,7 @@ class ActorCritic(nn.Module):
 
         # Value function
         critic_layers = []
+        # AATHIRA : What does Asymmetric stand for?
         if self.asymmetric:
             critic_layers.append(nn.Linear(*states_shape, critic_hidden_dim[0]))
         else:
